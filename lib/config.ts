@@ -19,9 +19,8 @@ export const config = {
     'http://localhost:3000,http://localhost:3001,https://solanavalidators.xyz,https://swap.jupiter.ag,https://app.uniswap.org,https://app.1inch.io'
   ).split(',').map(origin => origin.trim()),
   
-  // Network configuration
-  defaultNetwork: process.env.NEXT_PUBLIC_DEFAULT_NETWORK || 'mainnet-beta',
-  rpcEndpoint: process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com',
+  // RPC configuration - QuickNode endpoint
+  rpcEndpoint: process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://sparkling-attentive-replica.solana-mainnet.quiknode.pro/b83cf5c147d67a45906264e195574aa2a0150568/',
 }
 
 /**
