@@ -90,8 +90,21 @@ export default function WalletPage() {
       })
       
       // Listen for RPC requests
-      messenger.on('rpc-request', (request: RpcRequest) => {
+      messenger.on('rpc-request', async (request: RpcRequest) => {
         console.log('Received request:', request)
+        
+        // For connect requests when already authenticated, respond immediately
+        if (request.method === 'connect' && authResult && publicKey) {
+          console.log('Already authenticated, sending immediate response')
+          const response: RpcResponse = {
+            id: request.id,
+            result: { publicKey },
+            _request: request
+          }
+          messenger.send('rpc-response', response)
+          return
+        }
+        
         setCurrentRequest(request)
         handleRequest(request, messenger)
       })
@@ -110,7 +123,7 @@ export default function WalletPage() {
       window.removeEventListener('message', handleInitialMessage)
       messengerRef.current?.destroy()
     }
-  }, [])
+  }, [authResult, publicKey])
   
   // Handle passkey authentication
   async function handlePasskeyAuth() {
@@ -362,11 +375,15 @@ export default function WalletPage() {
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Passkey Wallet</h2>
-              <p className="text-white/70 text-sm">
-                Your wallet is derived from your passkey. No seed phrases needed.
-              </p>
+                </div>
+                <h2 className="text-xl font-semibold text-white mb-2">
+                  {currentRequest?.method === 'connect' ? 'Connect to ' + parentOrigin : 'Passkey Wallet'}
+                </h2>
+                <p className="text-white/70 text-sm">
+                  {currentRequest?.method === 'connect' 
+                    ? 'Authenticate with your passkey to connect'
+                    : 'Your wallet is derived from your passkey. No seed phrases needed.'}
+                </p>
             </div>
             
             <div className="space-y-4">
@@ -414,13 +431,12 @@ export default function WalletPage() {
               </div>
             )}
           </div>
-        ) : currentRequest ? (
-          // Request approval screen
+        ) : currentRequest && currentRequest.method !== 'connect' ? (
+          // Request approval screen (for non-connect requests)
           (
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-xl font-semibold text-white mb-2">
-                {currentRequest.method === 'connect' && 'Connect Wallet'}
                 {currentRequest.method === 'signMessage' && 'Sign Message'}
                 {currentRequest.method === 'signTransaction' && 'Sign Transaction'}
                 {currentRequest.method === 'disconnect' && 'Disconnect Wallet'}
@@ -468,8 +484,8 @@ export default function WalletPage() {
             </div>
           </div>
           )
-        ) : (
-          // Wallet main screen
+        ) : authResult && !currentRequest ? (
+          // Wallet main screen - only show if not processing a request
           <div className="space-y-6">
             {publicKey ? (
               <>
@@ -538,6 +554,14 @@ export default function WalletPage() {
                 <p className="text-white/50 text-sm mt-2">Authenticate to access your wallet</p>
               </div>
             )}
+          </div>
+        ) : (
+          // Processing state - waiting for something
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
+            </div>
+            <p className="text-white/70">Initializing...</p>
           </div>
         )}
         
