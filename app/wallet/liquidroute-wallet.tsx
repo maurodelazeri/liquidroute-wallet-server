@@ -601,7 +601,7 @@ export default function LiquidRouteWalletPage() {
               
               {/* Show account footer when request is active */}
               {publicKey && (
-                <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                <div style={{ marginTop: '16px' }}>
                   <Layout.Footer.Account 
                     address={publicKey}
                     onClick={() => {
