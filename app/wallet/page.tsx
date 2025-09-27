@@ -27,6 +27,7 @@ export default function WalletPage() {
   const [hasPasskey, setHasPasskey] = useState(false)
   const [passkeySupported, setPasskeySupported] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [connectionComplete, setConnectionComplete] = useState(false)
   const messengerRef = useRef<Bridge | null>(null)
   
   // Check for existing passkey on mount
@@ -102,6 +103,7 @@ export default function WalletPage() {
             _request: request
           }
           messenger.send('rpc-response', response)
+          setConnectionComplete(true) // Mark as complete so UI shows success
           return
         }
         
@@ -150,6 +152,7 @@ export default function WalletPage() {
         }
         messengerRef.current.send('rpc-response', response)
         setCurrentRequest(null)
+        setConnectionComplete(true) // Mark connection as complete, iframe should close
       }
       
       return result
@@ -188,6 +191,7 @@ export default function WalletPage() {
         }
         messengerRef.current.send('rpc-response', response)
         setCurrentRequest(null)
+        setConnectionComplete(true) // Mark connection as complete, iframe should close
       }
       
       return result
@@ -484,6 +488,17 @@ export default function WalletPage() {
             </div>
           </div>
           )
+        ) : connectionComplete ? (
+          // Connection complete - iframe should close soon
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto mb-4 bg-green-500/20 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-white mb-2">Connected!</h2>
+            <p className="text-white/70">You can now use your wallet</p>
+          </div>
         ) : authResult && !currentRequest ? (
           // Wallet main screen - only show if not processing a request
           <div className="space-y-6">
