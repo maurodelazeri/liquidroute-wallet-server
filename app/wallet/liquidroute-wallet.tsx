@@ -132,15 +132,23 @@ export default function LiquidRouteWalletPage() {
       setIsAuthenticating(true)
       
       let result: PasskeyAuthResult
-      if (isNewUser || !hasPasskey) {
-        // Create new passkey
+      if (isNewUser) {
+        // Explicitly creating a new passkey account
         const username = `user@${window.location.hostname}`
         const displayName = 'LiquidRoute User'
         result = await createPasskeyWallet(username, displayName)
       } else {
-        // Authenticate with existing
+        // Try to authenticate with existing passkey
         const credId = getStoredCredentialId()
-        result = await authenticateWithPasskey(credId || undefined)
+        try {
+          result = await authenticateWithPasskey(credId || undefined)
+        } catch (authError: any) {
+          // If authentication fails (no existing passkey), create a new one
+          console.log('No existing passkey found, creating new one')
+          const username = `user@${window.location.hostname}`
+          const displayName = 'LiquidRoute User'
+          result = await createPasskeyWallet(username, displayName)
+        }
       }
       
       storeCredentialId(result.credentialId)
@@ -158,7 +166,7 @@ export default function LiquidRouteWalletPage() {
     } finally {
       setIsAuthenticating(false)
     }
-  }, [hasPasskey, currentRequest])
+  }, [currentRequest])
   
   // Handle request approval
   const handleApprove = useCallback(async (authResultOverride?: PasskeyAuthResult) => {
@@ -349,16 +357,16 @@ export default function LiquidRouteWalletPage() {
                       onClick={() => handlePasskeyAuth(false)}
                       disabled={isAuthenticating}
                     >
-                      {isAuthenticating ? 'Signing in...' : 'Sign in with LiquidRoute'}
+                      {isAuthenticating ? 'Authenticating...' : 'Sign in or Create Account'}
                     </button>
                     
-                    <button
-                      className="liquidroute-button secondary"
-                      onClick={() => handlePasskeyAuth(true)}
-                      disabled={isAuthenticating}
-                    >
-                      {isAuthenticating ? 'Creating...' : 'Create LiquidRoute account'}
-                    </button>
+                    <p className="liquidroute-text-small" style={{ 
+                      marginTop: '12px', 
+                      textAlign: 'center',
+                      opacity: 0.7 
+                    }}>
+                      Uses your device's passkey (Touch ID, Face ID, etc.)
+                    </p>
                   </>
                 )}
               </div>

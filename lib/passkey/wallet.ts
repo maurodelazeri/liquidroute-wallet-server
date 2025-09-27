@@ -78,8 +78,9 @@ export async function createPasskeyWallet(
     throw new Error('PRF extension not supported by authenticator')
   }
 
-  // Authenticate immediately to get the PRF output
-  return await authenticateWithPasskey()
+  // Store the credential ID and authenticate with it to get the PRF output
+  const credentialId = base64urlEncode(new Uint8Array(credential.rawId))
+  return await authenticateWithPasskey(credentialId)
 }
 
 /**
