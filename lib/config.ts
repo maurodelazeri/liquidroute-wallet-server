@@ -10,13 +10,13 @@ export const config = {
   
   // List of trusted origins that can interact with the wallet
   // These can be COMPLETELY DIFFERENT domains, not just subdomains
-  // In production, these would be domains like:
-  // - https://app.uniswap.org
-  // - https://jupiter.ag
-  // - https://app.1inch.io
+  // Production domains:
+  // - https://solanavalidators.xyz (our client app)
+  // - https://app.uniswap.org (partner)
+  // - https://jupiter.ag (partner)
   trustedOrigins: (
     process.env.NEXT_PUBLIC_TRUSTED_ORIGINS || 
-    'http://localhost:3000,http://localhost:3001,https://app.liquidroute.com,https://swap.jupiter.ag,https://app.uniswap.org'
+    'http://localhost:3000,http://localhost:3001,https://solanavalidators.xyz,https://swap.jupiter.ag,https://app.uniswap.org,https://app.1inch.io'
   ).split(',').map(origin => origin.trim()),
   
   // Network configuration
