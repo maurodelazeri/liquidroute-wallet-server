@@ -58,12 +58,15 @@ export default function WalletPage() {
       
       // If there's a pending connect request, respond to it now
       if (currentRequest && currentRequest.method === 'connect' && messengerRef.current) {
+        console.log('[WalletServer] Sending connect response after passkey auth')
         const response: RpcResponse = {
           id: currentRequest.id,
           result: { publicKey: result.wallet.publicKey },
           _request: currentRequest
         }
+        console.log('[WalletServer] Response object:', response)
         messengerRef.current.send('rpc-response', response)
+        console.log('[WalletServer] Response sent via messenger')
         setCurrentRequest(null)
         setConnectionComplete(true) // Mark connection as complete, iframe should close
       }
@@ -99,12 +102,15 @@ export default function WalletPage() {
       
       // If there's a pending connect request, respond to it now
       if (currentRequest && currentRequest.method === 'connect' && messengerRef.current) {
+        console.log('[WalletServer] Sending connect response after passkey auth')
         const response: RpcResponse = {
           id: currentRequest.id,
           result: { publicKey: result.wallet.publicKey },
           _request: currentRequest
         }
+        console.log('[WalletServer] Response object:', response)
         messengerRef.current.send('rpc-response', response)
+        console.log('[WalletServer] Response sent via messenger')
         setCurrentRequest(null)
         setConnectionComplete(true) // Mark connection as complete, iframe should close
       }
@@ -302,16 +308,17 @@ export default function WalletPage() {
           
           // Setup RPC handler
           messenger.on('rpc-request', async (request: RpcRequest) => {
-            console.log('Received request:', request)
+            console.log('[WalletServer] Received request:', request)
             
             // Check if already authenticated for connect requests
             if (request.method === 'connect' && authResultRef.current && publicKeyRef.current) {
-              console.log('Already authenticated, sending immediate response')
+              console.log('[WalletServer] Already authenticated, sending immediate response')
               const response: RpcResponse = {
                 id: request.id,
                 result: { publicKey: publicKeyRef.current },
                 _request: request
               }
+              console.log('[WalletServer] Sending response:', response)
               messenger.send('rpc-response', response)
               setConnectionComplete(true)
               return
