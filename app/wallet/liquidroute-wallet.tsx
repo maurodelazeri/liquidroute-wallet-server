@@ -24,8 +24,7 @@ import { NFTMintPreview } from './screens/NFTMintPreview'
 import { PaymentPreview } from './screens/PaymentPreviewExact'
 import { Success } from './screens/Success'
 import { TransactionAnalyzer, type ContextMetadata } from '@/lib/context/TransactionAnalyzer'
-import './liquidroute-ui.css'
-import './porto-complete.css'
+import './porto-system.css'
 
 // LiquidRoute icon (simplified SVG)
 const LiquidRouteIcon = () => (
