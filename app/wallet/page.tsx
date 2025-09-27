@@ -273,8 +273,15 @@ export default function WalletPage() {
     const isIframe = window.parent !== window
     const targetWindow = isIframe ? window.parent : window.opener
     
+    console.log('[WalletServer] Setup - isIframe:', isIframe)
+    console.log('[WalletServer] Setup - targetWindow:', targetWindow)
+    console.log('[WalletServer] Setup - window.location.origin:', window.location.origin)
+    
     if (targetWindow) {
       const handleInitialMessage = (event: MessageEvent) => {
+        console.log('[WalletServer] Received initial message from:', event.origin)
+        console.log('[WalletServer] Our origin:', window.location.origin)
+        
         if (!isTrustedOrigin(event.origin)) {
           console.warn('Rejected message from untrusted origin:', event.origin)
           return
@@ -285,7 +292,9 @@ export default function WalletPage() {
         
         // Create messenger - this is stable and won't be recreated
         if (!messengerRef.current) {
+          // We receive messages from our own window
           const fromMessenger = fromWindow(window)
+          // We send messages to the parent/opener window at their origin
           const toMessenger = fromWindow(targetWindow, { targetOrigin: event.origin })
           
           const messenger = bridge({

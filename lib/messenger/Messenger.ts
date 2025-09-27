@@ -43,6 +43,8 @@ export function fromWindow(
 ): Messenger {
   const { targetOrigin } = options
   const listeners = new Map<string, MessageListener>()
+  
+  console.log('[fromWindow] Creating messenger with targetOrigin:', targetOrigin, 'for window:', w === window ? 'self' : w === window.parent ? 'parent' : 'other')
 
   return {
     destroy() {
@@ -81,8 +83,11 @@ export function fromWindow(
       const id = crypto.randomUUID()
       const message: Message<typeof payload> = { id, topic, payload }
       
+      const finalTarget = target ?? targetOrigin ?? '*'
+      console.log('[Messenger] Sending message with topic:', topic, 'to origin:', finalTarget)
+      
       // Never use '*' in production - always specify target origin
-      w.postMessage(message, target ?? targetOrigin ?? '*')
+      w.postMessage(message, finalTarget)
       
       return message as Message<any>
     },
