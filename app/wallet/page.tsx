@@ -216,8 +216,12 @@ export default function WalletPage() {
         _request: request
       }
       
+      console.log('[WalletServer] Sending RPC response:', response)
       messenger.send('rpc-response', response)
       setCurrentRequest(null)
+      if (request.method === 'connect') {
+        setConnectionComplete(true)
+      }
       
     } catch (error: any) {
       const response: RpcResponse = {
