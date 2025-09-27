@@ -279,19 +279,37 @@ export default function WalletPage() {
     
     if (targetWindow) {
       const handleInitialMessage = (event: MessageEvent) => {
-        console.log('[WalletServer] Received initial message from:', event.origin)
+        console.log('[WalletServer] Received message:', event.data)
+        console.log('[WalletServer] Message from:', event.origin)
         console.log('[WalletServer] Our origin:', window.location.origin)
+        
+        // CRITICAL: Ignore messages from ourselves!
+        if (event.origin === window.location.origin) {
+          console.log('[WalletServer] Ignoring message from self')
+          return
+        }
+        
+        // Wait for client-hello message to establish connection
+        if (event.data?.topic !== 'client-hello') {
+          console.log('[WalletServer] Ignoring non-hello message, waiting for client-hello')
+          return
+        }
         
         if (!isTrustedOrigin(event.origin)) {
           console.warn('Rejected message from untrusted origin:', event.origin)
           return
         }
         
-        console.log('Accepted connection from trusted origin:', event.origin)
+        console.log('[WalletServer] Accepted client-hello from trusted origin:', event.origin)
         setParentOrigin(event.origin)
         
         // Create messenger - this is stable and won't be recreated
         if (!messengerRef.current) {
+          console.log('[WalletServer] Creating messenger:')
+          console.log('[WalletServer] - Parent origin (event.origin):', event.origin)
+          console.log('[WalletServer] - Our origin:', window.location.origin)
+          console.log('[WalletServer] - Target window is parent?', targetWindow === window.parent)
+          
           // We receive messages from our own window
           const fromMessenger = fromWindow(window)
           // We send messages to the parent/opener window at their origin
