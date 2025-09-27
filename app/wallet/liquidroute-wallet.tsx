@@ -18,13 +18,13 @@ import { useStore, store } from '@/lib/store/Dialog'
 import { Layout } from '@/components/Layout'
 import { StringFormatter } from '@/lib/utils/StringFormatter'
 import { InsufficientFunds } from './screens/InsufficientFunds'
-import { ActionPreview } from './screens/ActionPreview'
+import { ActionPreview } from './screens/ActionPreviewExact'
 import { SwapPreview } from './screens/SwapPreview'
 import { NFTMintPreview } from './screens/NFTMintPreview'
-import { PaymentPreview } from './screens/PaymentPreview'
+import { PaymentPreview } from './screens/PaymentPreviewExact'
 import { Success } from './screens/Success'
 import { TransactionAnalyzer, type ContextMetadata } from '@/lib/context/TransactionAnalyzer'
-import './liquidroute-ui.css'
+import './porto-exact.css'
 
 // LiquidRoute icon (simplified SVG)
 const LiquidRouteIcon = () => (
