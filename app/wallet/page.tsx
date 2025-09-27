@@ -278,95 +278,72 @@ export default function WalletPage() {
     console.log('[WalletServer] Setup - window.location.origin:', window.location.origin)
     
     if (targetWindow) {
-      const handleInitialMessage = (event: MessageEvent) => {
-        console.log('[WalletServer] Received message:', event.data)
-        console.log('[WalletServer] Message from:', event.origin)
-        console.log('[WalletServer] Our origin:', window.location.origin)
-        
-        // CRITICAL: Ignore messages from ourselves!
-        if (event.origin === window.location.origin) {
-          console.log('[WalletServer] Ignoring message from self')
-          return
-        }
-        
-        // Wait for client-hello message to establish connection
-        if (event.data?.topic !== 'client-hello') {
-          console.log('[WalletServer] Ignoring non-hello message, waiting for client-hello')
-          return
-        }
-        
-        if (!isTrustedOrigin(event.origin)) {
-          console.warn('Rejected message from untrusted origin:', event.origin)
-          return
-        }
-        
-        console.log('[WalletServer] Accepted client-hello from trusted origin:', event.origin)
-        setParentOrigin(event.origin)
-        
-        // Create messenger - this is stable and won't be recreated
-        if (!messengerRef.current) {
-          console.log('[WalletServer] Creating messenger:')
-          console.log('[WalletServer] - Parent origin (event.origin):', event.origin)
-          console.log('[WalletServer] - Our origin:', window.location.origin)
-          console.log('[WalletServer] - Target window is parent?', targetWindow === window.parent)
-          
-          // We receive messages from our own window
-          const fromMessenger = fromWindow(window)
-          // We send messages to the parent/opener window at their origin
-          const toMessenger = fromWindow(targetWindow, { targetOrigin: event.origin })
-          
-          const messenger = bridge({
-            from: fromMessenger,
-            to: toMessenger,
-            waitForReady: false
-          })
-          
-          // Send ready signal
-          messenger.ready({
-            chainIds: ['mainnet-beta'],
-            trustedHosts: config.trustedOrigins.map(origin => {
-              try {
-                return new URL(origin).hostname
-              } catch {
-                return origin
-              }
-            })
-          })
-          
-          // Setup RPC handler
-          messenger.on('rpc-request', async (request: RpcRequest) => {
-            console.log('[WalletServer] Received request:', request)
-            
-            // Check if already authenticated for connect requests
-            if (request.method === 'connect' && authResultRef.current && publicKeyRef.current) {
-              console.log('[WalletServer] Already authenticated, sending immediate response')
-              const response: RpcResponse = {
-                id: request.id,
-                result: { publicKey: publicKeyRef.current },
-                _request: request
-              }
-              console.log('[WalletServer] Sending response:', response)
-              messenger.send('rpc-response', response)
-              setConnectionComplete(true)
-              return
-            }
-            
-            setCurrentRequest(request)
-            
-            // Handle the request with the stable messenger reference
-            if (messengerRef.current) {
-              handleRequest(request, messengerRef.current)
-            }
-          })
-          
-          messengerRef.current = messenger
-        }
-        
-        // Remove listener after first message
-        window.removeEventListener('message', handleInitialMessage)
-      }
+      // Create messenger immediately (like Porto)
+      console.log('[WalletServer] Creating messenger for:', isIframe ? 'iframe' : 'popup')
       
-      window.addEventListener('message', handleInitialMessage)
+      // Match Porto's exact setup - no targetOrigin specified
+      const fromMessenger = fromWindow(window)
+      const toMessenger = fromWindow(targetWindow)
+      
+      const messenger = bridge({
+        from: fromMessenger,
+        to: toMessenger,
+        waitForReady: false
+      })
+      
+      messengerRef.current = messenger
+      
+      // Send ready signal immediately (like Porto's dialog app)
+      console.log('[WalletServer] Sending ready signal')
+      messenger.ready({
+        chainIds: ['mainnet-beta'],
+        trustedHosts: config.trustedOrigins.map(origin => {
+          try {
+            return new URL(origin).hostname
+          } catch {
+            return origin
+          }
+        })
+      })
+          
+      // Setup RPC handler
+      messenger.on('rpc-request', async (request: RpcRequest, event?: MessageEvent) => {
+        console.log('[WalletServer] Received request:', request)
+        console.log('[WalletServer] From origin:', event?.origin)
+        
+        // Validate origin for RPC requests
+        if (event && !isTrustedOrigin(event.origin)) {
+          console.warn('[WalletServer] Rejected RPC from untrusted origin:', event.origin)
+          return
+        }
+        
+        // Store parent origin when we get first RPC request
+        if (event && parentOrigin === '*') {
+          console.log('[WalletServer] Setting parent origin from first RPC:', event.origin)
+          setParentOrigin(event.origin)
+        }
+        
+        // Check if already authenticated for connect requests
+        if (request.method === 'connect' && authResultRef.current && publicKeyRef.current) {
+          console.log('[WalletServer] Already authenticated, sending immediate response')
+          const response: RpcResponse = {
+            id: request.id,
+            result: { publicKey: publicKeyRef.current },
+            _request: request
+          }
+          console.log('[WalletServer] Sending response:', response)
+          messenger.send('rpc-response', response)
+          setConnectionComplete(true)
+          return
+        }
+        
+        setCurrentRequest(request)
+        
+        // Handle the request with the stable messenger reference
+        if (messengerRef.current) {
+          handleRequest(request, messengerRef.current)
+        }
+      })
     }
   }
   
