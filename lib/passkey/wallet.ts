@@ -20,6 +20,9 @@ export interface PasskeyAuthResult {
 
 /**
  * Create a new passkey for wallet generation
+ * Note: This requires two passkey prompts:
+ * 1. First to create the passkey
+ * 2. Second to authenticate and get the PRF output for wallet derivation
  */
 export async function createPasskeyWallet(
   username: string,
@@ -78,7 +81,9 @@ export async function createPasskeyWallet(
     throw new Error('PRF extension not supported by authenticator')
   }
 
-  // Store the credential ID and authenticate with it to get the PRF output
+  // Step 2: We must authenticate with the newly created passkey to get the PRF output
+  // The create operation only tells us PRF is enabled, but doesn't give us the output
+  // This is why users see two prompts when creating a new wallet
   const credentialId = base64urlEncode(new Uint8Array(credential.rawId))
   return await authenticateWithPasskey(credentialId)
 }
@@ -92,6 +97,13 @@ export async function authenticateWithPasskey(
   // Check WebAuthn support
   if (!window.PublicKeyCredential) {
     throw new Error('WebAuthn not supported in this browser')
+  }
+
+  // If no credential ID provided and we're not in a create flow, this will show
+  // the browser's passkey selection dialog. If there are no passkeys, it will
+  // show "No passkeys available" error
+  if (!credentialId) {
+    console.warn('No credential ID provided to authenticateWithPasskey - browser will show selection dialog')
   }
 
   // Generate challenge

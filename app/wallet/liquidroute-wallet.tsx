@@ -130,6 +130,7 @@ export default function LiquidRouteWalletPage() {
   const handlePasskeyAuth = useCallback(async (isNewUser: boolean) => {
     try {
       setIsAuthenticating(true)
+      setError(null) // Clear any previous errors
       
       let result: PasskeyAuthResult
       if (isNewUser) {
@@ -138,16 +139,37 @@ export default function LiquidRouteWalletPage() {
         const displayName = 'LiquidRoute User'
         result = await createPasskeyWallet(username, displayName)
       } else {
-        // Try to authenticate with existing passkey
+        // For sign in: check if we have a stored credential
         const credId = getStoredCredentialId()
-        try {
-          result = await authenticateWithPasskey(credId || undefined)
-        } catch (authError: any) {
-          // If authentication fails (no existing passkey), create a new one
-          console.log('No existing passkey found, creating new one')
+        if (!credId) {
+          // No stored credential, so this is definitely a new user - create account
+          console.log('No stored credential found, creating new account')
           const username = `user@${window.location.hostname}`
           const displayName = 'LiquidRoute User'
           result = await createPasskeyWallet(username, displayName)
+        } else {
+          // We have a stored credential, try to authenticate
+          try {
+            result = await authenticateWithPasskey(credId)
+          } catch (authError: any) {
+            // Authentication failed, maybe credential was deleted or wrong domain
+            console.error('Authentication failed:', authError)
+            // If the error indicates no passkey exists, clear the invalid stored credential and create a new one
+            if (authError.message?.includes('No passkeys') || 
+                authError.message?.includes('not found') ||
+                authError.message?.includes('not available')) {
+              console.log('Stored credential not valid, clearing and creating new account')
+              // Clear the invalid credential from storage
+              localStorage.removeItem('liquidroute:credentialId')
+              setHasPasskey(false)
+              
+              const username = `user@${window.location.hostname}`
+              const displayName = 'LiquidRoute User'
+              result = await createPasskeyWallet(username, displayName)
+            } else {
+              throw authError
+            }
+          }
         }
       }
       
@@ -161,12 +183,13 @@ export default function LiquidRouteWalletPage() {
         setTimeout(() => handleApprove(result), 100) // Small delay to ensure state is updated
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Passkey auth failed:', error)
+      setError(error.message || 'Authentication failed')
     } finally {
       setIsAuthenticating(false)
     }
-  }, [currentRequest])
+  }, [currentRequest, hasPasskey])
   
   // Handle request approval
   const handleApprove = useCallback(async (authResultOverride?: PasskeyAuthResult) => {
@@ -357,7 +380,11 @@ export default function LiquidRouteWalletPage() {
                       onClick={() => handlePasskeyAuth(false)}
                       disabled={isAuthenticating}
                     >
-                      {isAuthenticating ? 'Authenticating...' : 'Sign in or Create Account'}
+                      {isAuthenticating 
+                        ? 'Processing...' 
+                        : getStoredCredentialId() 
+                          ? 'Sign in with Passkey'
+                          : 'Create Wallet with Passkey'}
                     </button>
                     
                     <p className="liquidroute-text-small" style={{ 
@@ -365,8 +392,25 @@ export default function LiquidRouteWalletPage() {
                       textAlign: 'center',
                       opacity: 0.7 
                     }}>
-                      Uses your device's passkey (Touch ID, Face ID, etc.)
+                      {getStoredCredentialId() 
+                        ? 'Use your existing passkey to sign in' 
+                        : 'First time? You\'ll create a new passkey (2 prompts)'}
                     </p>
+                    
+                    {error && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '8px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '8px',
+                        textAlign: 'center'
+                      }}>
+                        <p className="liquidroute-text-small" style={{ color: '#ef4444' }}>
+                          {error}
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
