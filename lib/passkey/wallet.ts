@@ -100,8 +100,9 @@ export async function authenticateWithPasskey(
   const rpId = window.location.hostname === 'localhost' ? 'localhost' : 'wallet.liquidroute.com'
 
   // Prepare allowed credentials if credential ID provided
-  const allowCredentials = credentialId ? [{
-    id: base64urlDecode(credentialId),
+  const decoded = credentialId ? base64urlDecode(credentialId) : null
+  const allowCredentials = decoded ? [{
+    id: decoded.buffer.slice(decoded.byteOffset, decoded.byteOffset + decoded.byteLength) as ArrayBuffer,
     type: 'public-key' as PublicKeyCredentialType
   }] : undefined
 
@@ -131,7 +132,10 @@ export async function authenticateWithPasskey(
   }
 
   // Extract PRF output (256 bits of entropy)
-  const prfOutput = new Uint8Array(prfResult.results.first)
+  const prfBuffer = prfResult.results.first
+  const prfOutput = prfBuffer instanceof Uint8Array 
+    ? prfBuffer 
+    : new Uint8Array(prfBuffer as ArrayBuffer)
   
   // Master seed is first 32 bytes of PRF output
   const masterSeed = prfOutput.slice(0, 32)
