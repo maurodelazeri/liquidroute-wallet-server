@@ -439,44 +439,59 @@ export default function LiquidRouteWalletPage() {
                     
                     {/* Show account at bottom if exists - exactly like Porto */}
                     {currentAccount && (
-                      <div style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '12px' }}>
-                        <p className="liquidroute-text-small" style={{ marginBottom: '8px', opacity: 0.7 }}>
-                          Using
-                        </p>
+                      <div style={{ 
+                        marginTop: '20px', 
+                        borderTop: '1px solid rgba(0,0,0,0.1)', 
+                        paddingTop: '12px' 
+                      }}>
                         <div style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          background: 'rgba(0,0,0,0.02)',
-                          borderRadius: '8px'
+                          justifyContent: 'space-between'
                         }}>
-                          <span className="liquidroute-text-small" style={{ fontFamily: 'monospace' }}>
-                            {StringFormatter.truncate(currentAccount.address, { end: 6, start: 8 })}
+                          <span className="liquidroute-text-small" style={{ 
+                            opacity: 0.6,
+                            fontSize: '13px'
+                          }}>
+                            Using
                           </span>
-                          <button 
-                            className="liquidroute-text-small"
-                            style={{ 
-                              background: 'none', 
-                              border: 'none', 
-                              color: 'var(--color-th_link)',
-                              cursor: 'pointer',
-                              textDecoration: 'underline'
-                            }}
-                            onClick={() => {
-                              // Clear account and start fresh
-                              store.setState((state) => ({
-                                ...state,
-                                accounts: [],
-                                accountMetadata: {}
-                              }))
-                              setAuthResult(null)
-                              setPublicKey(null)
-                              setHasPasskey(false)
-                            }}
-                          >
-                            Switch • Sign up
-                          </button>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <span className="liquidroute-text-small" style={{ 
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              fontWeight: 500
+                            }}>
+                              {StringFormatter.truncate(currentAccount.address, { end: 6, start: 8 })}
+                            </span>
+                            <button 
+                              className="liquidroute-text-small"
+                              style={{ 
+                                background: 'none', 
+                                border: 'none', 
+                                color: 'var(--color-th_link)',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                textDecoration: 'underline'
+                              }}
+                              onClick={() => {
+                                // Clear account and start fresh
+                                store.setState((state) => ({
+                                  ...state,
+                                  accounts: [],
+                                  accountMetadata: {}
+                                }))
+                                setAuthResult(null)
+                                setPublicKey(null)
+                                setHasPasskey(false)
+                              }}
+                            >
+                              Switch • Sign up
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -601,7 +616,7 @@ export default function LiquidRouteWalletPage() {
               
               {/* Show account footer when request is active */}
               {publicKey && (
-                <div style={{ marginTop: '16px' }}>
+                <div style={{ marginTop: '12px' }}>
                   <Layout.Footer.Account 
                     address={publicKey}
                     onClick={() => {
