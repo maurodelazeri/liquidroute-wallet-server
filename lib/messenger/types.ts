@@ -7,6 +7,7 @@ export type MessageTopic =
   | 'ready'
   | 'close'
   | 'rpc-request'
+  | 'rpc-requests'  // Porto uses plural for batched requests
   | 'rpc-response'
   | 'success'
   | '__internal'

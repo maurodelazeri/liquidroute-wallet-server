@@ -309,9 +309,24 @@ export default function WalletPage() {
           }
         })
       })
+      
+      // Listen for __internal messages from parent (Porto pattern)
+      messenger.on('__internal', (payload: any, event?: MessageEvent) => {
+        console.log('[WalletServer] Received __internal message:', payload)
+        if (payload.type === 'init') {
+          // Parent has sent initialization data
+          const origin = event?.origin || '*'
+          if (origin !== '*') {
+            setParentOrigin(origin)
+          }
+        }
+      })
           
-      // Setup RPC handler
-      messenger.on('rpc-request', async (request: RpcRequest, event?: MessageEvent) => {
+      // Setup RPC handler - Porto uses 'rpc-requests' (plural) with array
+      messenger.on('rpc-requests', async (requests: RpcRequest[], event?: MessageEvent) => {
+        // Handle first request (we only send one at a time)
+        const request = Array.isArray(requests) ? requests[0] : requests as any
+        if (!request) return
         console.log('[WalletServer] Received request:', request)
         console.log('[WalletServer] From origin:', event?.origin)
         
