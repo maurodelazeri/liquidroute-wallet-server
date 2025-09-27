@@ -30,7 +30,14 @@ export default function PortoWalletUI() {
     if (initRef.current) return
     initRef.current = true
 
-    const inIframe = window.self !== window.top
+    // Safely check if we're in an iframe
+    let inIframe = false
+    try {
+      inIframe = window.self !== window.top
+    } catch (e) {
+      // If we can't access window.top due to cross-origin, we're definitely in an iframe
+      inIframe = true
+    }
     setIsIframe(inIframe)
     
     if (inIframe) {

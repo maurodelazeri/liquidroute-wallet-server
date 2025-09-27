@@ -38,18 +38,27 @@ export interface Bridge extends Messenger {
  * Creates a messenger from a window instance for cross-domain communication
  */
 export function fromWindow(
-  w: Window,
+  targetWindow: Window,
   options: { targetOrigin?: string } = {}
 ): Messenger {
   const { targetOrigin } = options
   const listeners = new Map<string, MessageListener>()
   
-  console.log('[fromWindow] Creating messenger with targetOrigin:', targetOrigin, 'for window:', w === window ? 'self' : w === window.parent ? 'parent' : 'other')
+  // Safely log without accessing cross-origin properties
+  let windowType = 'other'
+  try {
+    if (targetWindow === window) windowType = 'self'
+    else if (targetWindow === window.parent) windowType = 'parent'
+  } catch (e) {
+    windowType = 'cross-origin'
+  }
+  console.log('[fromWindow] Creating messenger with targetOrigin:', targetOrigin, 'for window:', windowType)
 
   return {
     destroy() {
       for (const listener of listeners.values()) {
-        w.removeEventListener('message', listener as EventListener)
+        // Always remove listeners from the current window
+        window.removeEventListener('message', listener as EventListener)
       }
       listeners.clear()
     },
@@ -69,12 +78,13 @@ export function fromWindow(
         listener(event.data.payload, event)
       }
 
-      w.addEventListener('message', handler)
+      // Always listen on the current window, not the target window
+      window.addEventListener('message', handler)
       const key = `${topic}-${id || 'default'}`
       listeners.set(key, handler as MessageListener)
       
       return () => {
-        w.removeEventListener('message', handler)
+        window.removeEventListener('message', handler)
         listeners.delete(key)
       }
     },
@@ -87,7 +97,7 @@ export function fromWindow(
       console.log('[Messenger] Sending message with topic:', topic, 'to origin:', finalTarget)
       
       // Never use '*' in production - always specify target origin
-      w.postMessage(message, finalTarget)
+      targetWindow.postMessage(message, finalTarget)
       
       return message as Message<any>
     },
