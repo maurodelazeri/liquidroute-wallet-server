@@ -41,6 +41,7 @@ export default function LiquidRouteWalletPage() {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [hasPasskey, setHasPasskey] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
   const messengerRef = useRef<Bridge | null>(null)
   
@@ -111,6 +112,7 @@ export default function LiquidRouteWalletPage() {
           }
           
           setCurrentRequest(request)
+          setError(null) // Clear any previous errors
           
           // Auto-approve if already authenticated for connect
           if (request.method === 'connect' && authResult && publicKey) {
@@ -162,11 +164,14 @@ export default function LiquidRouteWalletPage() {
   const handleApprove = useCallback(async (authResultOverride?: PasskeyAuthResult) => {
     if (!currentRequest || !messengerRef.current) return
     
+    setError(null) // Clear any previous error when retrying
+    
     const auth = authResultOverride || authResult
     const pubKey = auth?.wallet?.publicKey || publicKey
     
     if (!pubKey) {
       console.error('No public key available')
+      setError('No wallet available. Please authenticate first.')
       return
     }
     
@@ -220,6 +225,18 @@ export default function LiquidRouteWalletPage() {
       setCurrentRequest(null)
       
     } catch (error: any) {
+      // Show user-friendly error messages
+      let errorMessage = error.message || 'An error occurred'
+      
+      // Make common errors more user-friendly
+      if (errorMessage.includes('no record of a prior credit')) {
+        errorMessage = 'Insufficient balance. Please add SOL to your wallet.'
+      } else if (errorMessage.includes('Not authenticated')) {
+        errorMessage = 'Please authenticate first'
+      }
+      
+      setError(errorMessage)
+      
       const response: RpcResponse = {
         id: currentRequest.id,
         error: {
@@ -230,7 +247,7 @@ export default function LiquidRouteWalletPage() {
       }
       
       messengerRef.current.send('rpc-response', response)
-      setCurrentRequest(null)
+      // Don't clear currentRequest so user can retry
     }
   }, [currentRequest, publicKey, authResult])
   
@@ -249,6 +266,7 @@ export default function LiquidRouteWalletPage() {
     
     messengerRef.current.send('rpc-response', response)
     setCurrentRequest(null)
+    setError(null)
   }, [currentRequest])
   
   // Render nothing if not in iframe/popup
@@ -359,6 +377,27 @@ export default function LiquidRouteWalletPage() {
                 </p>
               </div>
               
+              {/* Error display */}
+              {error && (
+                <div style={{ 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ 
+                    color: '#ef4444',
+                    margin: 0,
+                    fontSize: '14px',
+                    fontWeight: 500
+                  }}>
+                    {error}
+                  </p>
+                </div>
+              )}
+              
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   className="liquidroute-button secondary"
@@ -372,7 +411,7 @@ export default function LiquidRouteWalletPage() {
                   onClick={() => handleApprove()}
                   style={{ flex: 1 }}
                 >
-                  Approve
+                  {error ? 'Retry' : 'Approve'}
                 </button>
               </div>
             </div>
