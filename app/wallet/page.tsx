@@ -128,6 +128,17 @@ export default function WalletPage() {
       setIsConnected(true)
       setHasPasskey(true)
       
+      // If there's a pending connect request, respond to it now
+      if (currentRequest && currentRequest.method === 'connect' && messengerRef.current) {
+        const response: RpcResponse = {
+          id: currentRequest.id,
+          result: { publicKey: result.wallet.publicKey },
+          _request: currentRequest
+        }
+        messengerRef.current.send('rpc-response', response)
+        setCurrentRequest(null)
+      }
+      
       return result
     } catch (error) {
       console.error('Passkey auth failed:', error)
@@ -154,6 +165,17 @@ export default function WalletPage() {
       setPublicKey(result.wallet.publicKey)
       setIsConnected(true)
       setHasPasskey(true)
+      
+      // If there's a pending connect request, respond to it now
+      if (currentRequest && currentRequest.method === 'connect' && messengerRef.current) {
+        const response: RpcResponse = {
+          id: currentRequest.id,
+          result: { publicKey: result.wallet.publicKey },
+          _request: currentRequest
+        }
+        messengerRef.current.send('rpc-response', response)
+        setCurrentRequest(null)
+      }
       
       return result
     } catch (error: any) {
@@ -182,16 +204,19 @@ export default function WalletPage() {
       let result: any
       
       switch (request.method) {
-        case 'connect':
-          // Ensure user is authenticated with passkey
-          if (!authResult) {
-            const auth = await handlePasskeyAuth()
-            if (!auth) {
-              throw new Error('Authentication required')
-            }
-          }
-          result = { publicKey }
-          break
+            case 'connect':
+              console.log('Connect request received, authResult:', !!authResult)
+              
+              // If not authenticated, show the passkey UI and wait for authentication
+              if (!authResult) {
+                // Set a flag that we're waiting for connection approval
+                setCurrentRequest(request)
+                return // Don't send response yet, wait for user to authenticate
+              }
+              
+              // Already authenticated, return the public key
+              result = { publicKey }
+              break
           
         case 'disconnect':
           setPublicKey(null)
