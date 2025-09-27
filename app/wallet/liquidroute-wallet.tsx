@@ -5,7 +5,6 @@ import { Transaction } from '@solana/web3.js'
 import { fromWindow, bridge, type Bridge } from '@/lib/messenger/Messenger'
 import type { RpcRequest, RpcResponse, SolanaRpcMethod } from '@/lib/messenger/types'
 import { config, isTrustedOrigin } from '@/lib/config'
-import { SolanaWalletRPC } from '@/lib/rpc/methods'
 import {
   createPasskeyWallet,
   authenticateWithPasskey,
@@ -69,7 +68,6 @@ export default function LiquidRouteWalletPage() {
   const [lastTransactionHash, setLastTransactionHash] = useState<string | null>(null)
   
   const messengerRef = useRef<Bridge | null>(null)
-  const rpcHandler = useRef(new SolanaWalletRPC(config.rpcEndpoint))
   
   // Check viewport size and update store display mode (exactly like Porto)
   useEffect(() => {
@@ -159,6 +157,13 @@ export default function LiquidRouteWalletPage() {
           // Validate origin
           if (event && !isTrustedOrigin(event.origin)) {
             return
+          }
+          
+          // Analyze transaction context if metadata is provided
+          if (request.params && (request.params.metadata || request.params.calls)) {
+            const context = TransactionAnalyzer.analyzeTransaction(request.params)
+            setTransactionContext(context)
+            console.log('[Wallet] Transaction context:', context)
           }
           
           setCurrentRequest(request)
@@ -606,89 +611,61 @@ export default function LiquidRouteWalletPage() {
                 }
               }}
             />
+          ) : showSuccessScreen ? (
+            // Success screen
+            <Success
+              title="Transaction Complete!"
+              message="Your transaction was successful"
+              txHash={lastTransactionHash || undefined}
+              onClose={() => {
+                setShowSuccessScreen(false)
+                setCurrentRequest(null)
+              }}
+            />
+          ) : currentRequest && transactionContext?.type === 'swap' ? (
+            // Swap preview screen
+            <SwapPreview
+              {...(transactionContext.details as any)}
+              publicKey={publicKey || ''}
+              onApprove={() => handleApprove()}
+              onReject={handleReject}
+              isProcessing={false}
+              error={error}
+            />
+          ) : currentRequest && transactionContext?.type === 'nft-mint' ? (
+            // NFT mint preview screen
+            <NFTMintPreview
+              {...(transactionContext.details as any)}
+              publicKey={publicKey || ''}
+              onApprove={() => handleApprove()}
+              onReject={handleReject}
+              isProcessing={false}
+              error={error}
+            />
+          ) : currentRequest && transactionContext?.type === 'payment' ? (
+            // Payment preview screen
+            <PaymentPreview
+              {...(transactionContext.details as any)}
+              publicKey={publicKey || ''}
+              onApprove={() => handleApprove()}
+              onReject={handleReject}
+              isProcessing={false}
+              error={error}
+            />
           ) : currentRequest ? (
-            // Request approval screen
-            <div>
-              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                <h2 className="liquidroute-title">
-                  {currentRequest.method === 'connect' && 'Connect'}
-                  {currentRequest.method === 'signMessage' && 'Sign Message'}
-                  {currentRequest.method === 'signTransaction' && 'Sign Transaction'}
-                </h2>
-                <p className="liquidroute-subtitle">
-                  {parentOrigin !== '*' ? new URL(parentOrigin).hostname : 'This app'} is requesting access
-                </p>
-              </div>
-              
-              {/* Error display */}
-              {error && (
-                <div style={{ 
-                  background: 'rgba(239, 68, 68, 0.1)', 
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  marginBottom: '16px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{ 
-                    color: '#ef4444',
-                    margin: 0,
-                    fontSize: '14px',
-                    fontWeight: 500
-                  }}>
-                    {error}
-                  </p>
-                  {error.includes('Insufficient balance') && publicKey && (
-                    <p style={{
-                      color: '#ef4444',
-                      margin: '8px 0 0',
-                      fontSize: '12px',
-                      opacity: 0.8,
-                      wordBreak: 'break-all'
-                    }}>
-                      Wallet: {publicKey}
-                    </p>
-                  )}
-                </div>
-              )}
-              
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  className="liquidroute-button secondary"
-                  onClick={handleReject}
-                  style={{ flex: 1 }}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="liquidroute-button primary"
-                  onClick={() => handleApprove()}
-                  style={{ flex: 1 }}
-                >
-                  {error ? 'Retry' : 'Approve'}
-                </button>
-              </div>
-              
-              {/* Show account footer when request is active */}
-              {publicKey && (
-                <div style={{ marginTop: '12px' }}>
-                  <Layout.Footer.Account 
-                    address={publicKey}
-                    onClick={() => {
-                      // Allow switching accounts
-                      store.setState((state) => ({
-                        ...state,
-                        accounts: [],
-                        accountMetadata: {}
-                      }))
-                      setAuthResult(null)
-                      setPublicKey(null)
-                      setHasPasskey(false)
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+            // Default request approval screen using ActionPreview component
+            <ActionPreview
+              method={currentRequest.method}
+              from={publicKey || ''}
+              to={(currentRequest.params as any)?.to}
+              value={(currentRequest.params as any)?.value}
+              message={currentRequest.params?.message ? 
+                Buffer.from(currentRequest.params.message, 'base64').toString('utf-8') : undefined}
+              onApprove={() => handleApprove()}
+              onReject={handleReject}
+              error={error}
+              isProcessing={false}
+            />
           ) : (
             // Fallback idle state
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
