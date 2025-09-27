@@ -1,0 +1,330 @@
+/* Porto theme CSS variables - exact copy from Porto */
+:root {
+  --color-th_accent: #0588f0;
+  --color-th_focus: #0090ff;
+  --color-th_link: #0588f0;
+  --color-th_separator: #e0e0e0;
+  --radius-th_small: 5px;
+  --radius-th_medium: 8px;
+  --radius-th_large: 14px;
+  --background-color-th_base: #fcfcfc;
+  --background-color-th_base-alt: #f0f0f0;
+  --background-color-th_base-plane: #f9f9f9;
+  --border-color-th_base: #e0e0e0;
+  --text-color-th_base: #202020;
+  --text-color-th_base-secondary: #838383;
+  --text-color-th_base-tertiary: #8d8d8d;
+  --text-color-th_base-positive: #30a46c;
+  --text-color-th_base-negative: #e5484d;
+  --text-color-th_base-warning: #e2a336;
+  --background-color-th_base-hovered: #f0f0f0;
+  --background-color-th_frame: #fcfcfc;
+  --text-color-th_frame: #8d8d8d;
+  --border-color-th_frame: #f0f0f0;
+  --radius-th_frame: 14px;
+  --background-color-th_primary: #0090ff;
+  --border-color-th_primary: #0090ff;
+  --text-color-th_primary: #ffffff;
+  --background-color-th_primary-hovered: #058bf0;
+  --border-color-th_primary-hovered: #058bf0;
+  --background-color-th_secondary: #e8e8e8;
+  --border-color-th_secondary: #e8e8e8;
+  --text-color-th_secondary: #202020;
+  --background-color-th_secondary-hovered: #e0e0e0;
+  --border-color-th_secondary-hovered: #e0e0e0;
+  --background-color-th_field: #f9f9f9;
+  --border-color-th_field: #e0e0e0;
+  --text-color-th_field: #202020;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-th_accent: #3b9eff;
+    --color-th_focus: #0090ff;
+    --color-th_link: #3b9eff;
+    --color-th_separator: #484848;
+    --background-color-th_base: #191919;
+    --background-color-th_base-alt: #2a2a2a;
+    --background-color-th_base-plane: #222222;
+    --border-color-th_base: #2a2a2a;
+    --text-color-th_base: #eeeeee;
+    --text-color-th_base-secondary: #7b7b7b;
+    --text-color-th_base-tertiary: #6e6e6e;
+    --text-color-th_base-positive: #30a46c;
+    --text-color-th_base-negative: #e5484d;
+    --text-color-th_base-warning: #f59e0b;
+    --background-color-th_base-hovered: #222222;
+    --background-color-th_frame: #191919;
+    --text-color-th_frame: #6e6e6e;
+    --border-color-th_frame: #313131;
+    --background-color-th_primary: #0090ff;
+    --border-color-th_primary: #0090ff;
+    --text-color-th_primary: #ffffff;
+    --background-color-th_primary-hovered: #3b9eff;
+    --border-color-th_primary-hovered: #3b9eff;
+    --background-color-th_secondary: #2a2a2a;
+    --border-color-th_secondary: #2a2a2a;
+    --text-color-th_secondary: #eeeeee;
+    --background-color-th_secondary-hovered: #313131;
+    --border-color-th_secondary-hovered: #313131;
+    --background-color-th_field: #191919;
+    --border-color-th_field: #313131;
+    --text-color-th_field: #eeeeee;
+  }
+}
+
+/* Porto's exact Frame styling */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: transparent;
+  color-scheme: light dark;
+  font-size: 15px;
+  line-height: 1.325;
+}
+
+body {
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Porto Frame container */
+.porto-frame {
+  container-type: inline-size;
+  display: grid;
+  height: 100%;
+  place-items: center;
+  position: relative;
+  width: 100%;
+}
+
+/* Drawer mode (mobile) alignment */
+.porto-frame.drawer {
+  align-items: flex-end;
+}
+
+/* Porto overlay (dark background) */
+.porto-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  position: fixed;
+  animation: fadeIn 0.15s ease;
+}
+
+/* Porto dialog container */
+.porto-dialog {
+  background-color: var(--background-color-th_base);
+  border: 1px solid var(--border-color-th_frame);
+  border-radius: var(--radius-th_frame);
+  display: flex;
+  flex-direction: column;
+  min-width: 360px;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  animation: slideUp 0.2s ease;
+  z-index: 1;
+}
+
+/* Floating mode (desktop) */
+.porto-dialog.floating {
+  max-width: 360px;
+  margin-top: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Drawer mode (mobile) */
+.porto-dialog.drawer {
+  border-bottom: 0;
+  border-bottom-radius: 0;
+  max-width: 460px;
+  border-radius: var(--radius-th_frame) var(--radius-th_frame) 0 0;
+}
+
+/* Porto frame bar (header) */
+.porto-frame-bar {
+  align-items: center;
+  background: var(--background-color-th_frame);
+  border-bottom: 1px solid var(--border-color-th_frame);
+  display: flex;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 8px;
+  position: relative;
+}
+
+.porto-frame-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.porto-frame-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.porto-frame-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-color-th_frame);
+  line-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.porto-frame-close {
+  background: transparent;
+  border: none;
+  color: var(--text-color-th_frame);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: 0;
+}
+
+.porto-frame-close:hover {
+  color: var(--text-color-th_base);
+}
+
+/* Porto content area */
+.porto-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+}
+
+/* Porto button styles */
+.porto-button {
+  align-items: center;
+  border-radius: var(--radius-th_medium);
+  border: 1px solid;
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 8px;
+  justify-content: center;
+  line-height: 1;
+  min-height: 40px;
+  padding: 0 16px;
+  position: relative;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.porto-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Primary button (blue) */
+.porto-button.primary {
+  background-color: var(--background-color-th_primary);
+  border-color: var(--border-color-th_primary);
+  color: var(--text-color-th_primary);
+}
+
+.porto-button.primary:hover:not(:disabled) {
+  background-color: var(--background-color-th_primary-hovered);
+  border-color: var(--border-color-th_primary-hovered);
+}
+
+/* Secondary button */
+.porto-button.secondary {
+  background-color: var(--background-color-th_secondary);
+  border-color: var(--border-color-th_secondary);
+  color: var(--text-color-th_secondary);
+}
+
+.porto-button.secondary:hover:not(:disabled) {
+  background-color: var(--background-color-th_secondary-hovered);
+  border-color: var(--border-color-th_secondary-hovered);
+}
+
+/* Porto logo icon */
+.porto-logo {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 16px;
+}
+
+/* Porto text styles */
+.porto-title {
+  color: var(--text-color-th_base);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.porto-subtitle {
+  color: var(--text-color-th_base-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.porto-text-small {
+  color: var(--text-color-th_base-tertiary);
+  font-size: 12px;
+}
+
+/* Porto input field */
+.porto-input {
+  background: var(--background-color-th_field);
+  border: 1px solid var(--border-color-th_field);
+  border-radius: var(--radius-th_small);
+  color: var(--text-color-th_field);
+  font-size: 14px;
+  min-height: 40px;
+  padding: 0 12px;
+  width: 100%;
+  transition: all 0.15s ease;
+}
+
+.porto-input:focus {
+  outline: none;
+  border-color: var(--color-th_focus);
+  box-shadow: 0 0 0 1px var(--color-th_focus);
+}
+
+.porto-input::placeholder {
+  color: var(--text-color-th_field-tertiary);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@container (max-width: 480px) {
+  .porto-dialog {
+    min-width: 100%;
+  }
+}
