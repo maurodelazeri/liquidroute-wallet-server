@@ -395,6 +395,17 @@ export default function LiquidRouteWalletPage() {
                   }}>
                     {error}
                   </p>
+                  {error.includes('Insufficient balance') && publicKey && (
+                    <p style={{
+                      color: '#ef4444',
+                      margin: '8px 0 0',
+                      fontSize: '12px',
+                      opacity: 0.8,
+                      wordBreak: 'break-all'
+                    }}>
+                      Wallet: {publicKey}
+                    </p>
+                  )}
                 </div>
               )}
               
