@@ -3,8 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Transaction } from '@solana/web3.js'
 import { fromWindow, bridge, type Bridge } from '@/lib/messenger/Messenger'
-import type { RpcRequest, RpcResponse } from '@/lib/messenger/types'
+import type { RpcRequest, RpcResponse, SolanaRpcMethod } from '@/lib/messenger/types'
 import { config, isTrustedOrigin } from '@/lib/config'
+import { SolanaWalletRPC } from '@/lib/rpc/methods'
 import {
   createPasskeyWallet,
   authenticateWithPasskey,
@@ -17,6 +18,13 @@ import {
 import { useStore, store } from '@/lib/store/Dialog'
 import { Layout } from '@/components/Layout'
 import { StringFormatter } from '@/lib/utils/StringFormatter'
+import { InsufficientFunds } from './screens/InsufficientFunds'
+import { ActionPreview } from './screens/ActionPreview'
+import { SwapPreview } from './screens/SwapPreview'
+import { NFTMintPreview } from './screens/NFTMintPreview'
+import { PaymentPreview } from './screens/PaymentPreview'
+import { Success } from './screens/Success'
+import { TransactionAnalyzer, type ContextMetadata } from '@/lib/context/TransactionAnalyzer'
 import './liquidroute-ui.css'
 
 // LiquidRoute icon (simplified SVG)
@@ -54,8 +62,14 @@ export default function LiquidRouteWalletPage() {
   const [hasPasskey, setHasPasskey] = useState(!!currentAccount)
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showInsufficientFunds, setShowInsufficientFunds] = useState(false)
+  const [requiredAmount, setRequiredAmount] = useState<string>('0.0001')
+  const [transactionContext, setTransactionContext] = useState<ContextMetadata | null>(null)
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false)
+  const [lastTransactionHash, setLastTransactionHash] = useState<string | null>(null)
   
   const messengerRef = useRef<Bridge | null>(null)
+  const rpcHandler = useRef(new SolanaWalletRPC(config.rpcEndpoint))
   
   // Check viewport size and update store display mode (exactly like Porto)
   useEffect(() => {
@@ -312,7 +326,19 @@ export default function LiquidRouteWalletPage() {
       let errorMessage = error.message || 'An error occurred'
       
       // Make common errors more user-friendly
-      if (errorMessage.includes('no record of a prior credit')) {
+      if (errorMessage.includes('no record of a prior credit') || 
+          errorMessage.includes('insufficient') ||
+          errorMessage.toLowerCase().includes('insufficient balance')) {
+        // Show insufficient funds screen for transaction errors
+        if (currentRequest.method === 'signTransaction') {
+          setShowInsufficientFunds(true)
+          // Try to extract required amount from error if possible
+          const match = errorMessage.match(/(\d+\.?\d*)\s*SOL/i)
+          if (match) {
+            setRequiredAmount(match[1])
+          }
+          return // Don't send error response yet
+        }
         errorMessage = 'Insufficient balance. Please add SOL to your wallet.'
       } else if (errorMessage.includes('Not authenticated')) {
         errorMessage = 'Please authenticate first'
@@ -551,6 +577,35 @@ export default function LiquidRouteWalletPage() {
                 />
               </div>
             </div>
+          ) : showInsufficientFunds && publicKey ? (
+            // Insufficient funds screen
+            <InsufficientFunds
+              publicKey={publicKey}
+              requiredAmount={requiredAmount}
+              onCancel={() => {
+                setShowInsufficientFunds(false)
+                if (currentRequest && messengerRef.current) {
+                  const response: RpcResponse = {
+                    id: currentRequest.id,
+                    error: {
+                      code: 4001,
+                      message: 'User rejected the request'
+                    },
+                    _request: currentRequest
+                  }
+                  messengerRef.current.send('rpc-response', response)
+                  setCurrentRequest(null)
+                }
+              }}
+              onAddFunds={() => {
+                setShowInsufficientFunds(false)
+                // User says they've added funds, retry the request
+                if (currentRequest) {
+                  setError(null)
+                  // Reset to show the approval screen again
+                }
+              }}
+            />
           ) : currentRequest ? (
             // Request approval screen
             <div>
