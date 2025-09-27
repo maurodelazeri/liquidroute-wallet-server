@@ -1,22 +1,21 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { Transaction } from '@solana/web3.js'
 import { fromWindow, bridge, type Bridge } from '@/lib/messenger/Messenger'
 import type { RpcRequest, RpcResponse } from '@/lib/messenger/types'
 import { config, isTrustedOrigin } from '@/lib/config'
-import { 
-  createPasskeyWallet, 
-  authenticateWithPasskey, 
+import {
+  createPasskeyWallet,
+  authenticateWithPasskey,
   deriveWalletAccount,
   isPasskeyAvailable,
   getStoredCredentialId,
   storeCredentialId,
-  type PasskeyAuthResult 
+  type PasskeyAuthResult
 } from '@/lib/passkey/wallet'
 
 export default function WalletPage() {
-  const [messenger, setMessenger] = useState<Bridge | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [publicKey, setPublicKey] = useState<string | null>(null)
   const [currentRequest, setCurrentRequest] = useState<RpcRequest | null>(null)
@@ -28,107 +27,19 @@ export default function WalletPage() {
   const [passkeySupported, setPasskeySupported] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [connectionComplete, setConnectionComplete] = useState(false)
+  
+  // Stable refs that don't cause re-renders
   const messengerRef = useRef<Bridge | null>(null)
+  const authResultRef = useRef<PasskeyAuthResult | null>(null)
+  const publicKeyRef = useRef<string | null>(null)
+  const initRef = useRef(false)
   
-  // Check for existing passkey on mount
-  useEffect(() => {
-    async function checkPasskey() {
-      const available = await isPasskeyAvailable()
-      setPasskeySupported(available)
-      
-      if (available) {
-        const credId = getStoredCredentialId()
-        setHasPasskey(!!credId)
-      }
-    }
-    checkPasskey()
-  }, [])
-  
-  // Initialize cross-domain messenger on mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    // Determine if we're in iframe or popup
-    const isIframe = window.parent !== window
-    const targetWindow = isIframe ? window.parent : window.opener
-    
-    if (!targetWindow) {
-      console.warn('No parent or opener window found')
-      return
-    }
-    
-    // Wait for the first message to get the parent origin
-    const handleInitialMessage = (event: MessageEvent) => {
-      // Validate that this is from a trusted origin
-      if (!isTrustedOrigin(event.origin)) {
-        console.warn('Rejected message from untrusted origin:', event.origin)
-        return
-      }
-      
-      console.log('Accepted connection from trusted origin:', event.origin)
-      setParentOrigin(event.origin)
-      
-      // Create messenger with the specific origin for security
-      const fromMessenger = fromWindow(window)
-      const toMessenger = fromWindow(targetWindow, { targetOrigin: event.origin })
-      
-      const messenger = bridge({
-        from: fromMessenger,
-        to: toMessenger,
-        waitForReady: false
-      })
-      
-      // Send ready signal with trusted hosts from config
-      messenger.ready({
-        chainIds: ['mainnet-beta'], // Using QuickNode mainnet endpoint
-        trustedHosts: config.trustedOrigins.map(origin => {
-          try {
-            return new URL(origin).hostname
-          } catch {
-            return origin
-          }
-        })
-      })
-      
-      // Listen for RPC requests
-      messenger.on('rpc-request', async (request: RpcRequest) => {
-        console.log('Received request:', request)
-        
-        // For connect requests when already authenticated, respond immediately
-        if (request.method === 'connect' && authResult && publicKey) {
-          console.log('Already authenticated, sending immediate response')
-          const response: RpcResponse = {
-            id: request.id,
-            result: { publicKey },
-            _request: request
-          }
-          messenger.send('rpc-response', response)
-          setConnectionComplete(true) // Mark as complete so UI shows success
-          return
-        }
-        
-        setCurrentRequest(request)
-        handleRequest(request, messenger)
-      })
-      
-      setMessenger(messenger)
-      messengerRef.current = messenger
-      
-      // Remove the initial listener after first message
-      window.removeEventListener('message', handleInitialMessage)
-    }
-    
-    // Listen for the initial message to establish origin
-    window.addEventListener('message', handleInitialMessage)
-    
-    return () => {
-      window.removeEventListener('message', handleInitialMessage)
-      messengerRef.current?.destroy()
-    }
-  }, [authResult, publicKey])
+  // Update refs when state changes (no useEffect needed)
+  authResultRef.current = authResult
+  publicKeyRef.current = publicKey
   
   // Handle passkey authentication
-  async function handlePasskeyAuth() {
+  const handlePasskeyAuth = useCallback(async () => {
     try {
       setIsCreatingPasskey(true)
       
@@ -139,7 +50,9 @@ export default function WalletPage() {
       // Store credential ID for future use
       storeCredentialId(result.credentialId)
       setAuthResult(result)
+      authResultRef.current = result // Update ref
       setPublicKey(result.wallet.publicKey)
+      publicKeyRef.current = result.wallet.publicKey // Update ref
       setIsConnected(true)
       setHasPasskey(true)
       
@@ -162,10 +75,10 @@ export default function WalletPage() {
     } finally {
       setIsCreatingPasskey(false)
     }
-  }
+  }, [currentRequest])
   
   // Handle creating a new passkey
-  async function handleCreatePasskey() {
+  const handleCreatePasskey = useCallback(async () => {
     try {
       setIsCreatingPasskey(true)
       setErrorMessage(null)
@@ -178,7 +91,9 @@ export default function WalletPage() {
       // Store credential ID for future use
       storeCredentialId(result.credentialId)
       setAuthResult(result)
+      authResultRef.current = result // Update ref
       setPublicKey(result.wallet.publicKey)
+      publicKeyRef.current = result.wallet.publicKey // Update ref
       setIsConnected(true)
       setHasPasskey(true)
       
@@ -204,36 +119,36 @@ export default function WalletPage() {
     } finally {
       setIsCreatingPasskey(false)
     }
-  }
+  }, [currentRequest])
   
   // Handle account index change
-  async function handleAccountChange(newIndex: number) {
+  const handleAccountChange = useCallback(async (newIndex: number) => {
     if (!authResult?.masterSeed) return
     
     setAccountIndex(newIndex)
     const keypair = await deriveWalletAccount(authResult.masterSeed, newIndex)
     setPublicKey(keypair.publicKey.toBase58())
-  }
+  }, [authResult])
   
   // Handle RPC requests from different domains
-  async function handleRequest(request: RpcRequest, messenger: Bridge) {
+  const handleRequest = useCallback(async (request: RpcRequest, messenger: Bridge) => {
     try {
       let result: any
       
       switch (request.method) {
-            case 'connect':
-              console.log('Connect request received, authResult:', !!authResult)
-              
-              // If not authenticated, show the passkey UI and wait for authentication
-              if (!authResult) {
-                // Set a flag that we're waiting for connection approval
-                setCurrentRequest(request)
-                return // Don't send response yet, wait for user to authenticate
-              }
-              
-              // Already authenticated, return the public key
-              result = { publicKey }
-              break
+        case 'connect':
+          console.log('Connect request received, authResult:', !!authResult)
+          
+          // If not authenticated, show the passkey UI and wait for authentication
+          if (!authResult) {
+            // Set a flag that we're waiting for connection approval
+            setCurrentRequest(request)
+            return // Don't send response yet, wait for user to authenticate
+          }
+          
+          // Already authenticated, return the public key
+          result = { publicKey }
+          break
           
         case 'disconnect':
           setPublicKey(null)
@@ -251,13 +166,13 @@ export default function WalletPage() {
           const messageKeypair = await deriveWalletAccount(authResult.masterSeed, accountIndex)
           
           // Sign the message
-          const message = typeof request.params === 'object' && 
-                         'message' in (request.params as any) 
+          const message = typeof request.params === 'object' &&
+                         'message' in (request.params as any)
                          ? Buffer.from((request.params as any).message, 'base64')
                          : Buffer.from('test message')
           
           // Use nacl to sign (Solana uses Ed25519)
-          const signature = await import('tweetnacl').then(nacl => 
+          const signature = await import('tweetnacl').then(nacl =>
             nacl.sign.detached(message, messageKeypair.secretKey)
           )
           
@@ -311,16 +226,16 @@ export default function WalletPage() {
       messenger.send('rpc-response', response)
       setCurrentRequest(null)
     }
-  }
+  }, [authResult, publicKey, accountIndex])
   
   // Handle user actions
-  function handleApprove() {
-    if (!currentRequest || !messenger) return
-    handleRequest(currentRequest, messenger)
-  }
+  const handleApprove = useCallback(() => {
+    if (!currentRequest || !messengerRef.current) return
+    handleRequest(currentRequest, messengerRef.current)
+  }, [currentRequest, handleRequest])
   
-  function handleReject() {
-    if (!currentRequest || !messenger) return
+  const handleReject = useCallback(() => {
+    if (!currentRequest || !messengerRef.current) return
     
     const response: RpcResponse = {
       id: currentRequest.id,
@@ -331,10 +246,96 @@ export default function WalletPage() {
       _request: currentRequest
     }
     
-    messenger.send('rpc-response', response)
+    messengerRef.current.send('rpc-response', response)
     setCurrentRequest(null)
+  }, [currentRequest])
+  
+  // Initialize on first render only
+  if (!initRef.current && typeof window !== 'undefined') {
+    initRef.current = true
+    
+    // Check passkey availability
+    isPasskeyAvailable().then(available => {
+      setPasskeySupported(available)
+      if (available) {
+        const credId = getStoredCredentialId()
+        setHasPasskey(!!credId)
+      }
+    })
+    
+    // Setup messenger
+    const isIframe = window.parent !== window
+    const targetWindow = isIframe ? window.parent : window.opener
+    
+    if (targetWindow) {
+      const handleInitialMessage = (event: MessageEvent) => {
+        if (!isTrustedOrigin(event.origin)) {
+          console.warn('Rejected message from untrusted origin:', event.origin)
+          return
+        }
+        
+        console.log('Accepted connection from trusted origin:', event.origin)
+        setParentOrigin(event.origin)
+        
+        // Create messenger - this is stable and won't be recreated
+        if (!messengerRef.current) {
+          const fromMessenger = fromWindow(window)
+          const toMessenger = fromWindow(targetWindow, { targetOrigin: event.origin })
+          
+          const messenger = bridge({
+            from: fromMessenger,
+            to: toMessenger,
+            waitForReady: false
+          })
+          
+          // Send ready signal
+          messenger.ready({
+            chainIds: ['mainnet-beta'],
+            trustedHosts: config.trustedOrigins.map(origin => {
+              try {
+                return new URL(origin).hostname
+              } catch {
+                return origin
+              }
+            })
+          })
+          
+          // Setup RPC handler
+          messenger.on('rpc-request', async (request: RpcRequest) => {
+            console.log('Received request:', request)
+            
+            // Check if already authenticated for connect requests
+            if (request.method === 'connect' && authResultRef.current && publicKeyRef.current) {
+              console.log('Already authenticated, sending immediate response')
+              const response: RpcResponse = {
+                id: request.id,
+                result: { publicKey: publicKeyRef.current },
+                _request: request
+              }
+              messenger.send('rpc-response', response)
+              setConnectionComplete(true)
+              return
+            }
+            
+            setCurrentRequest(request)
+            
+            // Handle the request with the stable messenger reference
+            if (messengerRef.current) {
+              handleRequest(request, messengerRef.current)
+            }
+          })
+          
+          messengerRef.current = messenger
+        }
+        
+        // Remove listener after first message
+        window.removeEventListener('message', handleInitialMessage)
+      }
+      
+      window.addEventListener('message', handleInitialMessage)
+    }
   }
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">
       <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md">
@@ -379,15 +380,15 @@ export default function WalletPage() {
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-white mb-2">
-                  {currentRequest?.method === 'connect' ? 'Connect to ' + parentOrigin : 'Passkey Wallet'}
-                </h2>
-                <p className="text-white/70 text-sm">
-                  {currentRequest?.method === 'connect' 
-                    ? 'Authenticate with your passkey to connect'
-                    : 'Your wallet is derived from your passkey. No seed phrases needed.'}
-                </p>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">
+                {currentRequest?.method === 'connect' ? 'Connect to ' + parentOrigin : 'Passkey Wallet'}
+              </h2>
+              <p className="text-white/70 text-sm">
+                {currentRequest?.method === 'connect' 
+                  ? 'Authenticate with your passkey to connect'
+                  : 'Your wallet is derived from your passkey. No seed phrases needed.'}
+              </p>
             </div>
             
             <div className="space-y-4">
