@@ -1,19 +1,46 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Keypair } from '@solana/web3.js'
+import { Transaction } from '@solana/web3.js'
 import { fromWindow, bridge, type Bridge } from '@/lib/messenger/Messenger'
 import type { RpcRequest, RpcResponse } from '@/lib/messenger/types'
 import { config, isTrustedOrigin } from '@/lib/config'
+import { 
+  createPasskeyWallet, 
+  authenticateWithPasskey, 
+  deriveWalletAccount,
+  isPasskeyAvailable,
+  getStoredCredentialId,
+  storeCredentialId,
+  type PasskeyAuthResult 
+} from '@/lib/passkey/wallet'
 
 export default function WalletPage() {
   const [messenger, setMessenger] = useState<Bridge | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [publicKey, setPublicKey] = useState<string | null>(null)
   const [currentRequest, setCurrentRequest] = useState<RpcRequest | null>(null)
-  const [isUnlocked, setIsUnlocked] = useState(false)
   const [parentOrigin, setParentOrigin] = useState<string>('*')
+  const [accountIndex, setAccountIndex] = useState(0)
+  const [authResult, setAuthResult] = useState<PasskeyAuthResult | null>(null)
+  const [isCreatingPasskey, setIsCreatingPasskey] = useState(false)
+  const [hasPasskey, setHasPasskey] = useState(false)
+  const [passkeySupported, setPasskeySupported] = useState(true)
   const messengerRef = useRef<Bridge | null>(null)
+  
+  // Check for existing passkey on mount
+  useEffect(() => {
+    async function checkPasskey() {
+      const available = await isPasskeyAvailable()
+      setPasskeySupported(available)
+      
+      if (available) {
+        const credId = getStoredCredentialId()
+        setHasPasskey(!!credId)
+      }
+    }
+    checkPasskey()
+  }, [])
   
   // Initialize cross-domain messenger on mount
   useEffect(() => {
@@ -30,7 +57,7 @@ export default function WalletPage() {
     
     // Wait for the first message to get the parent origin
     const handleInitialMessage = (event: MessageEvent) => {
-      // Validate that this is from a trusted origin (can be completely different domain)
+      // Validate that this is from a trusted origin
       if (!isTrustedOrigin(event.origin)) {
         console.warn('Rejected message from untrusted origin:', event.origin)
         return
@@ -84,6 +111,65 @@ export default function WalletPage() {
     }
   }, [])
   
+  // Handle passkey authentication
+  async function handlePasskeyAuth() {
+    try {
+      setIsCreatingPasskey(true)
+      
+      // Try to authenticate with existing passkey
+      const credId = getStoredCredentialId()
+      const result = await authenticateWithPasskey(credId || undefined)
+      
+      // Store credential ID for future use
+      storeCredentialId(result.credentialId)
+      setAuthResult(result)
+      setPublicKey(result.wallet.publicKey)
+      setIsConnected(true)
+      setHasPasskey(true)
+      
+      return result
+    } catch (error) {
+      console.error('Passkey auth failed:', error)
+      throw error
+    } finally {
+      setIsCreatingPasskey(false)
+    }
+  }
+  
+  // Handle creating a new passkey
+  async function handleCreatePasskey() {
+    try {
+      setIsCreatingPasskey(true)
+      
+      // Create new passkey
+      const username = prompt('Enter a username for your wallet:') || 'User'
+      const result = await createPasskeyWallet(username)
+      
+      // Store credential ID for future use
+      storeCredentialId(result.credentialId)
+      setAuthResult(result)
+      setPublicKey(result.wallet.publicKey)
+      setIsConnected(true)
+      setHasPasskey(true)
+      
+      return result
+    } catch (error) {
+      console.error('Failed to create passkey:', error)
+      alert(`Failed to create passkey: ${error}`)
+    } finally {
+      setIsCreatingPasskey(false)
+    }
+  }
+  
+  // Handle account index change
+  async function handleAccountChange(newIndex: number) {
+    if (!authResult?.masterSeed) return
+    
+    setAccountIndex(newIndex)
+    const keypair = await deriveWalletAccount(authResult.masterSeed, newIndex)
+    setPublicKey(keypair.publicKey.toBase58())
+  }
+  
   // Handle RPC requests from different domains
   async function handleRequest(request: RpcRequest, messenger: Bridge) {
     try {
@@ -91,36 +177,62 @@ export default function WalletPage() {
       
       switch (request.method) {
         case 'connect':
-          // For demo, generate a random keypair
-          // In production, would use secure key management
-          if (!publicKey) {
-            const keypair = Keypair.generate()
-            const pubKey = keypair.publicKey.toBase58()
-            setPublicKey(pubKey)
-            setIsConnected(true)
-            result = { publicKey: pubKey }
-          } else {
-            result = { publicKey }
+          // Ensure user is authenticated with passkey
+          if (!authResult) {
+            const auth = await handlePasskeyAuth()
+            if (!auth) {
+              throw new Error('Authentication required')
+            }
           }
+          result = { publicKey }
           break
           
         case 'disconnect':
           setPublicKey(null)
           setIsConnected(false)
+          setAuthResult(null)
           result = { success: true }
           break
           
         case 'signMessage':
-          // Would show UI for user to approve
+          if (!authResult) {
+            throw new Error('Not authenticated')
+          }
+          
+          // Derive the keypair for the current account
+          const messageKeypair = await deriveWalletAccount(authResult.masterSeed, accountIndex)
+          
+          // Sign the message
+          const message = typeof request.params === 'object' && 
+                         'message' in (request.params as any) 
+                         ? Buffer.from((request.params as any).message, 'base64')
+                         : Buffer.from('test message')
+          
+          // Use nacl to sign (Solana uses Ed25519)
+          const signature = await import('tweetnacl').then(nacl => 
+            nacl.sign.detached(message, messageKeypair.secretKey)
+          )
+          
           result = {
-            signature: Buffer.from('mock-signature').toString('base64')
+            signature: Buffer.from(signature).toString('base64')
           }
           break
           
         case 'signTransaction':
-          // Would show transaction details for approval
+          if (!authResult) {
+            throw new Error('Not authenticated')
+          }
+          
+          // Derive the keypair for signing
+          const txKeypair = await deriveWalletAccount(authResult.masterSeed, accountIndex)
+          
+          // Parse and sign the transaction
+          const txData = (request.params as any).transaction
+          const tx = Transaction.from(Buffer.from(txData, 'base64'))
+          tx.sign(txKeypair)
+          
           result = {
-            signedTransaction: 'mock-signed-transaction'
+            signedTransaction: tx.serialize().toString('base64')
           }
           break
           
@@ -196,32 +308,70 @@ export default function WalletPage() {
           </div>
         )}
         
-        {!isUnlocked ? (
-          // Lock screen
+        {!passkeySupported ? (
+          // Browser doesn't support passkeys
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-20 h-20 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">Passkeys Not Supported</h2>
+              <p className="text-white/70 text-sm">
+                Your browser doesn't support passkeys. Please use a modern browser like Chrome, Edge, or Safari.
+              </p>
+            </div>
+          </div>
+        ) : !authResult ? (
+          // Passkey authentication screen
           <div className="space-y-6">
             <div className="text-center">
               <div className="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center">
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Welcome Back</h2>
-              <p className="text-white/70 text-sm">Enter your password to unlock</p>
+              <h2 className="text-xl font-semibold text-white mb-2">Passkey Wallet</h2>
+              <p className="text-white/70 text-sm">
+                Your wallet is derived from your passkey. No seed phrases needed.
+              </p>
             </div>
             
             <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="Password"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
-              />
+              {hasPasskey ? (
+                <button
+                  onClick={handlePasskeyAuth}
+                  disabled={isCreatingPasskey}
+                  className="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all duration-200 shadow-lg disabled:opacity-50"
+                >
+                  {isCreatingPasskey ? '🔄 Authenticating...' : '🔐 Unlock with Passkey'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleCreatePasskey}
+                    disabled={isCreatingPasskey}
+                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all duration-200 shadow-lg disabled:opacity-50"
+                  >
+                    {isCreatingPasskey ? '🔄 Creating...' : '✨ Create Passkey Wallet'}
+                  </button>
+                  
+                  <button
+                    onClick={handlePasskeyAuth}
+                    disabled={isCreatingPasskey}
+                    className="w-full py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all duration-200"
+                  >
+                    🔓 Use Existing Passkey
+                  </button>
+                </>
+              )}
               
-              <button
-                onClick={() => setIsUnlocked(true)}
-                className="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all duration-200 shadow-lg"
-              >
-                Unlock
-              </button>
+              <div className="text-center">
+                <p className="text-white/50 text-xs">
+                  Powered by WebAuthn PRF • True self-custody
+                </p>
+              </div>
             </div>
           </div>
         ) : currentRequest ? (
@@ -288,17 +438,52 @@ export default function WalletPage() {
                   </p>
                 </div>
                 
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-white/70 text-sm">Account Index</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleAccountChange(Math.max(0, accountIndex - 1))}
+                        className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-white hover:bg-white/20"
+                      >
+                        ←
+                      </button>
+                      <span className="text-white font-mono w-8 text-center">{accountIndex}</span>
+                      <button
+                        onClick={() => handleAccountChange(accountIndex + 1)}
+                        className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-white hover:bg-white/20"
+                      >
+                        →
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-white/50 text-xs">
+                    Deterministic BIP44 derivation from passkey
+                  </p>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white/10 rounded-xl p-4 text-center">
-                    <p className="text-white/70 text-sm mb-1">Balance</p>
-                    <p className="text-white text-2xl font-bold">0 SOL</p>
+                    <p className="text-white/70 text-sm mb-1">Network</p>
+                    <p className="text-white text-xl font-bold">QuickNode</p>
                   </div>
                   
                   <div className="bg-white/10 rounded-xl p-4 text-center">
-                    <p className="text-white/70 text-sm mb-1">Network</p>
-                    <p className="text-white text-2xl font-bold">QuickNode</p>
+                    <p className="text-white/70 text-sm mb-1">Auth Method</p>
+                    <p className="text-white text-xl font-bold">Passkey</p>
                   </div>
                 </div>
+                
+                <button
+                  onClick={() => {
+                    setAuthResult(null)
+                    setPublicKey(null)
+                    setIsConnected(false)
+                  }}
+                  className="w-full py-2 bg-white/10 text-white/70 text-sm rounded-xl hover:bg-white/20 transition-all duration-200"
+                >
+                  Lock Wallet
+                </button>
               </>
             ) : (
               <div className="text-center py-12">
@@ -307,8 +492,8 @@ export default function WalletPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <p className="text-white/70">No wallet connected</p>
-                <p className="text-white/50 text-sm mt-2">Connect from an app to get started</p>
+                <p className="text-white/70">Passkey wallet ready</p>
+                <p className="text-white/50 text-sm mt-2">Authenticate to access your wallet</p>
               </div>
             )}
           </div>
@@ -316,7 +501,7 @@ export default function WalletPage() {
         
         <div className="mt-8 pt-6 border-t border-white/10">
           <p className="text-center text-white/50 text-xs">
-            Cross-Domain Solana Wallet • Powered by LiquidRoute
+            Passkey Wallet • True Self-Custody • Powered by WebAuthn PRF
           </p>
         </div>
       </div>
