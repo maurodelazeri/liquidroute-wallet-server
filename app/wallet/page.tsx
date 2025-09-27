@@ -2,12 +2,12 @@
 
 import dynamic from 'next/dynamic'
 
-// Use Porto's exact Dialog UI
-const PortoDialog = dynamic(() => import('./PortoExactDialog'), { 
+// Porto's EXACT code - copied directly from Porto's source
+const PortoExactClean = dynamic(() => import('./PortoExactClean'), { 
   ssr: false,
   loading: () => null
 })
 
 export default function WalletPage() {
-  return <PortoDialog />
+  return <PortoExactClean />
 }
