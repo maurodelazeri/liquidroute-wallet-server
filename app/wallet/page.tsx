@@ -51,7 +51,7 @@ export default function WalletPage() {
       
       // Send ready signal with trusted hosts from config
       messenger.ready({
-        chainIds: ['mainnet-beta', 'testnet', 'devnet'],
+        chainIds: ['mainnet-beta'], // Using QuickNode mainnet endpoint
         trustedHosts: config.trustedOrigins.map(origin => {
           try {
             return new URL(origin).hostname
@@ -296,7 +296,7 @@ export default function WalletPage() {
                   
                   <div className="bg-white/10 rounded-xl p-4 text-center">
                     <p className="text-white/70 text-sm mb-1">Network</p>
-                    <p className="text-white text-2xl font-bold">Mainnet</p>
+                    <p className="text-white text-2xl font-bold">QuickNode</p>
                   </div>
                 </div>
               </>
