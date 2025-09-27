@@ -1,4 +1,4 @@
-/* Porto theme CSS variables - exact copy from Porto */
+/* LiquidRoute theme CSS variables */
 :root {
   --color-th_accent: #0588f0;
   --color-th_focus: #0090ff;
@@ -73,7 +73,7 @@
   }
 }
 
-/* Porto's exact Frame styling */
+/* LiquidRoute Frame styling */
 html,
 body {
   height: 100%;
@@ -91,8 +91,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Porto Frame container */
-.porto-frame {
+/* LiquidRoute Frame container */
+.liquidroute-frame {
   container-type: inline-size;
   display: grid;
   height: 100%;
@@ -102,20 +102,20 @@ body {
 }
 
 /* Drawer mode (mobile) alignment */
-.porto-frame.drawer {
+.liquidroute-frame.drawer {
   align-items: flex-end;
 }
 
-/* Porto overlay (dark background) */
-.porto-overlay {
+/* LiquidRoute overlay (dark background) */
+.liquidroute-overlay {
   background: rgba(0, 0, 0, 0.5);
   inset: 0;
   position: fixed;
   animation: fadeIn 0.15s ease;
 }
 
-/* Porto dialog container */
-.porto-dialog {
+/* LiquidRoute dialog container */
+.liquidroute-dialog {
   background-color: var(--background-color-th_base);
   border: 1px solid var(--border-color-th_frame);
   border-radius: var(--radius-th_frame);
@@ -130,22 +130,22 @@ body {
 }
 
 /* Floating mode (desktop) */
-.porto-dialog.floating {
+.liquidroute-dialog.floating {
   max-width: 360px;
   margin-top: 16px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* Drawer mode (mobile) */
-.porto-dialog.drawer {
+.liquidroute-dialog.drawer {
   border-bottom: 0;
   border-bottom-radius: 0;
   max-width: 460px;
   border-radius: var(--radius-th_frame) var(--radius-th_frame) 0 0;
 }
 
-/* Porto frame bar (header) */
-.porto-frame-bar {
+/* LiquidRoute frame bar (header) */
+.liquidroute-frame-bar {
   align-items: center;
   background: var(--background-color-th_frame);
   border-bottom: 1px solid var(--border-color-th_frame);
@@ -156,19 +156,19 @@ body {
   position: relative;
 }
 
-.porto-frame-icon {
+.liquidroute-frame-icon {
   width: 16px;
   height: 16px;
   display: flex;
   align-items: center;
 }
 
-.porto-frame-icon img {
+.liquidroute-frame-icon img {
   width: 100%;
   height: 100%;
 }
 
-.porto-frame-label {
+.liquidroute-frame-label {
   flex: 1;
   font-size: 14px;
   color: var(--text-color-th_frame);
@@ -178,7 +178,7 @@ body {
   text-overflow: ellipsis;
 }
 
-.porto-frame-close {
+.liquidroute-frame-close {
   background: transparent;
   border: none;
   color: var(--text-color-th_frame);
@@ -190,20 +190,20 @@ body {
   margin: 0;
 }
 
-.porto-frame-close:hover {
+.liquidroute-frame-close:hover {
   color: var(--text-color-th_base);
 }
 
-/* Porto content area */
-.porto-content {
+/* LiquidRoute content area */
+.liquidroute-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
 }
 
-/* Porto button styles */
-.porto-button {
+/* LiquidRoute button styles */
+.liquidroute-button {
   align-items: center;
   border-radius: var(--radius-th_medium);
   border: 1px solid;
@@ -222,64 +222,64 @@ body {
   width: 100%;
 }
 
-.porto-button:disabled {
+.liquidroute-button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
 /* Primary button (blue) */
-.porto-button.primary {
+.liquidroute-button.primary {
   background-color: var(--background-color-th_primary);
   border-color: var(--border-color-th_primary);
   color: var(--text-color-th_primary);
 }
 
-.porto-button.primary:hover:not(:disabled) {
+.liquidroute-button.primary:hover:not(:disabled) {
   background-color: var(--background-color-th_primary-hovered);
   border-color: var(--border-color-th_primary-hovered);
 }
 
 /* Secondary button */
-.porto-button.secondary {
+.liquidroute-button.secondary {
   background-color: var(--background-color-th_secondary);
   border-color: var(--border-color-th_secondary);
   color: var(--text-color-th_secondary);
 }
 
-.porto-button.secondary:hover:not(:disabled) {
+.liquidroute-button.secondary:hover:not(:disabled) {
   background-color: var(--background-color-th_secondary-hovered);
   border-color: var(--border-color-th_secondary-hovered);
 }
 
-/* Porto logo icon */
-.porto-logo {
+/* LiquidRoute logo icon */
+.liquidroute-logo {
   width: 32px;
   height: 32px;
   margin-bottom: 16px;
 }
 
-/* Porto text styles */
-.porto-title {
+/* LiquidRoute text styles */
+.liquidroute-title {
   color: var(--text-color-th_base);
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 8px 0;
 }
 
-.porto-subtitle {
+.liquidroute-subtitle {
   color: var(--text-color-th_base-secondary);
   font-size: 14px;
   line-height: 1.5;
   margin: 0;
 }
 
-.porto-text-small {
+.liquidroute-text-small {
   color: var(--text-color-th_base-tertiary);
   font-size: 12px;
 }
 
-/* Porto input field */
-.porto-input {
+/* LiquidRoute input field */
+.liquidroute-input {
   background: var(--background-color-th_field);
   border: 1px solid var(--border-color-th_field);
   border-radius: var(--radius-th_small);
@@ -291,13 +291,13 @@ body {
   transition: all 0.15s ease;
 }
 
-.porto-input:focus {
+.liquidroute-input:focus {
   outline: none;
   border-color: var(--color-th_focus);
   box-shadow: 0 0 0 1px var(--color-th_focus);
 }
 
-.porto-input::placeholder {
+.liquidroute-input::placeholder {
   color: var(--text-color-th_field-tertiary);
 }
 
@@ -324,7 +324,7 @@ body {
 
 /* Responsive */
 @container (max-width: 480px) {
-  .porto-dialog {
+  .liquidroute-dialog {
     min-width: 100%;
   }
 }

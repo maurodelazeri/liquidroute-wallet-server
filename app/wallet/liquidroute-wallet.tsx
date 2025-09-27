@@ -14,10 +14,10 @@ import {
   storeCredentialId,
   type PasskeyAuthResult
 } from '@/lib/passkey/wallet'
-import './porto-ui.css'
+import './liquidroute-ui.css'
 
-// Porto icons (simplified SVG)
-const PortoIcon = () => (
+// LiquidRoute icon (simplified SVG)
+const LiquidRouteIcon = () => (
   <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
     <rect width="32" height="32" rx="8" fill="#0090ff"/>
     <path d="M16 8L22 14L16 20L10 14L16 8Z" fill="white"/>
@@ -30,7 +30,7 @@ const CloseIcon = () => (
   </svg>
 )
 
-export default function PortoWalletPage() {
+export default function LiquidRouteWalletPage() {
   // State management
   const [isReady, setIsReady] = useState(false)
   const [mode, setMode] = useState<'floating' | 'drawer'>('floating')
@@ -41,7 +41,6 @@ export default function PortoWalletPage() {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [hasPasskey, setHasPasskey] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [email, setEmail] = useState('')
   
   const messengerRef = useRef<Bridge | null>(null)
   
@@ -115,7 +114,8 @@ export default function PortoWalletPage() {
           
           // Auto-approve if already authenticated for connect
           if (request.method === 'connect' && authResult && publicKey) {
-            handleApprove()
+            console.log('[Wallet] Auto-approving connect request with existing auth')
+            setTimeout(() => handleApprove(), 100) // Small delay to ensure state is set
           }
         })
         
@@ -132,8 +132,8 @@ export default function PortoWalletPage() {
       let result: PasskeyAuthResult
       if (isNewUser || !hasPasskey) {
         // Create new passkey
-        const username = email || `user@${window.location.hostname}`
-        const displayName = 'Porto User'
+        const username = `user@${window.location.hostname}`
+        const displayName = 'LiquidRoute User'
         result = await createPasskeyWallet(username, displayName)
       } else {
         // Authenticate with existing
@@ -146,9 +146,9 @@ export default function PortoWalletPage() {
       setPublicKey(result.wallet.publicKey)
       setHasPasskey(true)
       
-      // If there's a pending request, approve it
-      if (currentRequest) {
-        await handleApprove()
+      // If there's a pending connect request, approve it immediately
+      if (currentRequest && currentRequest.method === 'connect') {
+        setTimeout(() => handleApprove(result), 100) // Small delay to ensure state is updated
       }
       
     } catch (error) {
@@ -156,25 +156,34 @@ export default function PortoWalletPage() {
     } finally {
       setIsAuthenticating(false)
     }
-  }, [email, hasPasskey, currentRequest])
+  }, [hasPasskey, currentRequest])
   
   // Handle request approval
-  const handleApprove = useCallback(async () => {
+  const handleApprove = useCallback(async (authResultOverride?: PasskeyAuthResult) => {
     if (!currentRequest || !messengerRef.current) return
+    
+    const auth = authResultOverride || authResult
+    const pubKey = auth?.wallet?.publicKey || publicKey
+    
+    if (!pubKey) {
+      console.error('No public key available')
+      return
+    }
     
     try {
       let result: any
       
       switch (currentRequest.method) {
         case 'connect':
-          result = { publicKey }
+          result = { publicKey: pubKey }
+          console.log('[Wallet] Sending connect response with publicKey:', pubKey)
           setShowSuccess(true)
           setTimeout(() => setShowSuccess(false), 2000)
           break
           
         case 'signMessage':
-          if (!authResult) throw new Error('Not authenticated')
-          const messageKeypair = await deriveWalletAccount(authResult.masterSeed, 0)
+          if (!auth) throw new Error('Not authenticated')
+          const messageKeypair = await deriveWalletAccount(auth.masterSeed, 0)
           const message = Buffer.from((currentRequest.params as any)?.message || '', 'base64')
           const signature = await import('tweetnacl').then(nacl =>
             nacl.sign.detached(message, messageKeypair.secretKey)
@@ -183,8 +192,8 @@ export default function PortoWalletPage() {
           break
           
         case 'signTransaction':
-          if (!authResult) throw new Error('Not authenticated')
-          const txKeypair = await deriveWalletAccount(authResult.masterSeed, 0)
+          if (!auth) throw new Error('Not authenticated')
+          const txKeypair = await deriveWalletAccount(auth.masterSeed, 0)
           const txData = (currentRequest.params as any).transaction
           const tx = Transaction.from(Buffer.from(txData, 'base64'))
           tx.sign(txKeypair)
@@ -248,120 +257,91 @@ export default function PortoWalletPage() {
   }
   
   return (
-    <div className={`porto-frame ${mode}`}>
+    <div className={`liquidroute-frame ${mode}`}>
       {/* Dark overlay background */}
-      {mode === 'floating' && <div className="porto-overlay" onClick={handleReject} />}
+      {mode === 'floating' && <div className="liquidroute-overlay" onClick={handleReject} />}
       
       {/* Main dialog */}
-      <div className={`porto-dialog ${mode}`}>
+      <div className={`liquidroute-dialog ${mode}`}>
         {/* Frame bar (header) */}
-        <div className="porto-frame-bar">
-          <div className="porto-frame-icon">
-            <PortoIcon />
+        <div className="liquidroute-frame-bar">
+          <div className="liquidroute-frame-icon">
+            <LiquidRouteIcon />
           </div>
-          <div className="porto-frame-label">
-            {parentOrigin !== '*' ? new URL(parentOrigin).hostname : 'Porto'}
+          <div className="liquidroute-frame-label">
+            {parentOrigin !== '*' ? new URL(parentOrigin).hostname : 'LiquidRoute'}
           </div>
-          <button className="porto-frame-close" onClick={handleReject}>
+          <button className="liquidroute-frame-close" onClick={handleReject}>
             <CloseIcon />
           </button>
         </div>
         
         {/* Content area */}
-        <div className="porto-content">
+        <div className="liquidroute-content">
           {showSuccess ? (
             // Success state
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div className="porto-logo" style={{ margin: '0 auto 16px' }}>
-                <PortoIcon />
+              <div className="liquidroute-logo" style={{ margin: '0 auto 16px' }}>
+                <LiquidRouteIcon />
               </div>
-              <h2 className="porto-title">Connected</h2>
-              <p className="porto-subtitle">You can now use Porto</p>
+              <h2 className="liquidroute-title">Connected!</h2>
+              <p className="liquidroute-subtitle">You can now use your wallet</p>
             </div>
           ) : !authResult ? (
             // Sign in screen
             <div>
               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                <div className="porto-logo" style={{ margin: '0 auto' }}>
-                  <PortoIcon />
+                <div className="liquidroute-logo" style={{ margin: '0 auto' }}>
+                  <LiquidRouteIcon />
                 </div>
-                <h1 className="porto-title">
+                <h1 className="liquidroute-title">
                   {hasPasskey ? 'Sign in' : 'Get started'}
                 </h1>
-                <p className="porto-subtitle">
-                  Use Porto to sign in to {parentOrigin !== '*' ? new URL(parentOrigin).hostname : 'app.uniswap.org'} and more.
+                <p className="liquidroute-subtitle">
+                  Use LiquidRoute to sign in to {parentOrigin !== '*' ? new URL(parentOrigin).hostname : 'this app'}.
                 </p>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {hasPasskey ? (
-                  <button
-                    className="porto-button primary"
-                    onClick={() => handlePasskeyAuth(false)}
-                    disabled={isAuthenticating}
-                  >
-                    {isAuthenticating ? 'Signing in...' : 'Continue with Porto'}
-                  </button>
-                ) : (
                   <>
                     <button
-                      className="porto-button primary"
-                      onClick={() => handlePasskeyAuth(true)}
+                      className="liquidroute-button primary"
+                      onClick={() => handlePasskeyAuth(false)}
                       disabled={isAuthenticating}
                     >
-                      {isAuthenticating ? 'Creating...' : 'Sign in with Porto'}
+                      {isAuthenticating ? 'Signing in...' : 'Sign in with LiquidRoute'}
                     </button>
-                    
-                    <div style={{ position: 'relative', marginTop: '8px' }}>
-                      <p className="porto-text-small" style={{ marginBottom: '8px' }}>
-                        First time?
-                      </p>
-                      <input
-                        type="email"
-                        className="porto-input"
-                        placeholder="example@ithaca.xyz"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                      <p className="porto-text-small" style={{ marginTop: '4px', textAlign: 'right' }}>
-                        Optional
-                      </p>
-                    </div>
                     
                     <button
-                      className="porto-button secondary"
-                      onClick={() => handlePasskeyAuth(true)}
-                      disabled={isAuthenticating}
-                      style={{ marginTop: '8px' }}
-                    >
-                      Create Porto account
-                    </button>
-                  </>
-                )}
-                
-                {hasPasskey && (
-                  <div style={{ marginTop: '16px', textAlign: 'center' }}>
-                    <p className="porto-text-small">
-                      Using: {publicKey ? `${publicKey.slice(0, 8)}...${publicKey.slice(-4)}` : '0x50e9aa...ef0f0a'}
-                    </p>
-                    <button 
-                      className="porto-text-small"
-                      style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        color: 'var(--color-th_link)',
-                        cursor: 'pointer',
-                        textDecoration: 'underline'
-                      }}
+                      className="liquidroute-button secondary"
                       onClick={() => {
                         setAuthResult(null)
                         setPublicKey(null)
                         setHasPasskey(false)
                       }}
                     >
-                      Switch · Sign up
+                      Use different account
                     </button>
-                  </div>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="liquidroute-button primary"
+                      onClick={() => handlePasskeyAuth(false)}
+                      disabled={isAuthenticating}
+                    >
+                      {isAuthenticating ? 'Signing in...' : 'Sign in with LiquidRoute'}
+                    </button>
+                    
+                    <button
+                      className="liquidroute-button secondary"
+                      onClick={() => handlePasskeyAuth(true)}
+                      disabled={isAuthenticating}
+                    >
+                      {isAuthenticating ? 'Creating...' : 'Create LiquidRoute account'}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -369,27 +349,27 @@ export default function PortoWalletPage() {
             // Request approval screen
             <div>
               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                <h2 className="porto-title">
+                <h2 className="liquidroute-title">
                   {currentRequest.method === 'connect' && 'Connect'}
                   {currentRequest.method === 'signMessage' && 'Sign Message'}
                   {currentRequest.method === 'signTransaction' && 'Sign Transaction'}
                 </h2>
-                <p className="porto-subtitle">
+                <p className="liquidroute-subtitle">
                   {parentOrigin !== '*' ? new URL(parentOrigin).hostname : 'This app'} is requesting access
                 </p>
               </div>
               
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
-                  className="porto-button secondary"
+                  className="liquidroute-button secondary"
                   onClick={handleReject}
                   style={{ flex: 1 }}
                 >
                   Cancel
                 </button>
                 <button
-                  className="porto-button primary"
-                  onClick={handleApprove}
+                  className="liquidroute-button primary"
+                  onClick={() => handleApprove()}
                   style={{ flex: 1 }}
                 >
                   Approve
@@ -399,11 +379,11 @@ export default function PortoWalletPage() {
           ) : (
             // Idle state
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div className="porto-logo" style={{ margin: '0 auto 16px' }}>
-                <PortoIcon />
+              <div className="liquidroute-logo" style={{ margin: '0 auto 16px' }}>
+                <LiquidRouteIcon />
               </div>
-              <h2 className="porto-title">Porto</h2>
-              <p className="porto-subtitle">Connected</p>
+              <h2 className="liquidroute-title">LiquidRoute</h2>
+              <p className="liquidroute-subtitle">Connected</p>
             </div>
           )}
         </div>

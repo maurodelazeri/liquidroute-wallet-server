@@ -1,2 +1,2 @@
-// Re-export the Porto-styled wallet as the main wallet page
-export { default } from './porto-wallet'
+// Re-export the LiquidRoute wallet as the main wallet page
+export { default } from './liquidroute-wallet'
