@@ -14,6 +14,9 @@ import {
   storeCredentialId,
   type PasskeyAuthResult
 } from '@/lib/passkey/wallet'
+import { useStore, store } from '@/lib/store/Dialog'
+import { Layout } from '@/components/Layout'
+import { StringFormatter } from '@/lib/utils/StringFormatter'
 import './liquidroute-ui.css'
 
 // LiquidRoute icon (simplified SVG)
@@ -31,24 +34,34 @@ const CloseIcon = () => (
 )
 
 export default function LiquidRouteWalletPage() {
-  // State management
+  // Use Zustand store exactly like Porto
+  const accounts = useStore((state) => state.accounts)
+  const accountMetadata = useStore((state) => state.accountMetadata)
+  const display = useStore((state) => state.display)
+  const referrer = useStore((state) => state.referrer)
+  const mode = useStore((state) => state.mode)
+  
+  // Get current account from store (first account like Porto)
+  const currentAccount = accounts[0]
+  
+  // Local state management
   const [isReady, setIsReady] = useState(false)
-  const [mode, setMode] = useState<'floating' | 'drawer'>('floating')
-  const [publicKey, setPublicKey] = useState<string | null>(null)
+  const [publicKey, setPublicKey] = useState<string | null>(currentAccount?.address || null)
   const [currentRequest, setCurrentRequest] = useState<RpcRequest | null>(null)
-  const [parentOrigin, setParentOrigin] = useState<string>('*')
+  const [parentOrigin, setParentOrigin] = useState<string>(referrer?.origin || '*')
   const [authResult, setAuthResult] = useState<PasskeyAuthResult | null>(null)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
-  const [hasPasskey, setHasPasskey] = useState(false)
+  const [hasPasskey, setHasPasskey] = useState(!!currentAccount)
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   const messengerRef = useRef<Bridge | null>(null)
   
-  // Check viewport size for responsive mode
+  // Check viewport size and update store display mode (exactly like Porto)
   useEffect(() => {
     const checkSize = () => {
-      setMode(window.innerWidth < 480 ? 'drawer' : 'floating')
+      const newDisplay = window.innerWidth < 480 ? 'drawer' : 'floating'
+      store.setState((state) => ({ ...state, display: newDisplay }))
     }
     checkSize()
     window.addEventListener('resize', checkSize)
@@ -58,13 +71,26 @@ export default function LiquidRouteWalletPage() {
   // Initialize messenger and passkey
   useEffect(() => {
     if (!isReady && typeof window !== 'undefined') {
-      // Check passkey availability
-      isPasskeyAvailable().then(available => {
-        if (available) {
-          const credId = getStoredCredentialId()
-          setHasPasskey(!!credId)
+      // Check for existing account in store (exactly like Porto)
+      const storedAccounts = store.getState().accounts
+      if (storedAccounts.length > 0) {
+        const account = storedAccounts[0]
+        setPublicKey(account.address)
+        setHasPasskey(true)
+        // Try to load the auth result if we have credentials stored
+        const metadata = store.getState().accountMetadata[account.address]
+        if (metadata?.credentialId) {
+          storeCredentialId(metadata.credentialId)
         }
-      })
+      } else {
+        // Check passkey availability for new users
+        isPasskeyAvailable().then(available => {
+          if (available) {
+            const credId = getStoredCredentialId()
+            setHasPasskey(!!credId)
+          }
+        })
+      }
       
       // Setup messenger
       const isIframe = window.parent !== window
@@ -94,10 +120,20 @@ export default function LiquidRouteWalletPage() {
           })
         })
         
-        // Listen for init message
+        // Listen for init message and update store (exactly like Porto)
         messenger.on('__internal', (payload: any, event?: MessageEvent) => {
           if (payload.type === 'init' && event) {
             setParentOrigin(event.origin)
+            // Update store referrer exactly like Porto
+            store.setState((state) => ({
+              ...state,
+              referrer: {
+                origin: event.origin,
+                url: payload.referrer?.url ? new URL(payload.referrer.url) : undefined,
+                title: payload.referrer?.title
+              },
+              mode: payload.mode || 'iframe'
+            }))
           }
         })
         
@@ -177,6 +213,22 @@ export default function LiquidRouteWalletPage() {
       setAuthResult(result)
       setPublicKey(result.wallet.publicKey)
       setHasPasskey(true)
+      
+      // Update store exactly like Porto - persist account
+      store.setState((state) => ({
+        ...state,
+        accounts: [{
+          address: result.wallet.publicKey,
+          credentialId: result.credentialId
+        }],
+        accountMetadata: {
+          ...state.accountMetadata,
+          [result.wallet.publicKey]: {
+            credentialId: result.credentialId,
+            lastUsed: Date.now()
+          }
+        }
+      }))
       
       // If there's a pending connect request, approve it immediately
       if (currentRequest && currentRequest.method === 'connect') {
@@ -306,12 +358,12 @@ export default function LiquidRouteWalletPage() {
   }
   
   return (
-    <div className={`liquidroute-frame ${mode}`}>
+    <div className={`liquidroute-frame ${display}`}>
       {/* Dark overlay background */}
-      {mode === 'floating' && <div className="liquidroute-overlay" onClick={handleReject} />}
+      {display === 'floating' && <div className="liquidroute-overlay" onClick={handleReject} />}
       
       {/* Main dialog */}
-      <div className={`liquidroute-dialog ${mode}`}>
+      <div className={`liquidroute-dialog ${display}`}>
         {/* Frame bar (header) */}
         <div className="liquidroute-frame-bar">
           <div className="liquidroute-frame-icon">
@@ -382,20 +434,62 @@ export default function LiquidRouteWalletPage() {
                     >
                       {isAuthenticating 
                         ? 'Processing...' 
-                        : getStoredCredentialId() 
-                          ? 'Sign in with Passkey'
-                          : 'Create Wallet with Passkey'}
+                        : 'Continue with Passkey'}
                     </button>
                     
-                    <p className="liquidroute-text-small" style={{ 
-                      marginTop: '12px', 
-                      textAlign: 'center',
-                      opacity: 0.7 
-                    }}>
-                      {getStoredCredentialId() 
-                        ? 'Use your existing passkey to sign in' 
-                        : 'First time? You\'ll create a new passkey (2 prompts)'}
-                    </p>
+                    {/* Show account at bottom if exists - exactly like Porto */}
+                    {currentAccount && (
+                      <div style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '12px' }}>
+                        <p className="liquidroute-text-small" style={{ marginBottom: '8px', opacity: 0.7 }}>
+                          Using
+                        </p>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          background: 'rgba(0,0,0,0.02)',
+                          borderRadius: '8px'
+                        }}>
+                          <span className="liquidroute-text-small" style={{ fontFamily: 'monospace' }}>
+                            {StringFormatter.truncate(currentAccount.address, { end: 6, start: 8 })}
+                          </span>
+                          <button 
+                            className="liquidroute-text-small"
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              color: 'var(--color-th_link)',
+                              cursor: 'pointer',
+                              textDecoration: 'underline'
+                            }}
+                            onClick={() => {
+                              // Clear account and start fresh
+                              store.setState((state) => ({
+                                ...state,
+                                accounts: [],
+                                accountMetadata: {}
+                              }))
+                              setAuthResult(null)
+                              setPublicKey(null)
+                              setHasPasskey(false)
+                            }}
+                          >
+                            Switch • Sign up
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!currentAccount && (
+                      <p className="liquidroute-text-small" style={{ 
+                        marginTop: '12px', 
+                        textAlign: 'center',
+                        opacity: 0.7 
+                      }}>
+                        First time? You'll create a new passkey (2 prompts)
+                      </p>
+                    )}
                     
                     {error && (
                       <div style={{
@@ -413,6 +507,33 @@ export default function LiquidRouteWalletPage() {
                     )}
                   </>
                 )}
+              </div>
+            </div>
+          ) : hasPasskey && publicKey && !currentRequest ? (
+            // Idle state when authenticated (like Porto)
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div className="liquidroute-logo" style={{ margin: '0 auto 16px' }}>
+                <LiquidRouteIcon />
+              </div>
+              <h2 className="liquidroute-title">LiquidRoute Wallet</h2>
+              <p className="liquidroute-subtitle">Connected</p>
+              
+              {/* Show account footer even in idle state */}
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+                <Layout.Footer.Account 
+                  address={publicKey}
+                  onClick={() => {
+                    // Allow switching accounts
+                    store.setState((state) => ({
+                      ...state,
+                      accounts: [],
+                      accountMetadata: {}
+                    }))
+                    setAuthResult(null)
+                    setPublicKey(null)
+                    setHasPasskey(false)
+                  }}
+                />
               </div>
             </div>
           ) : currentRequest ? (
@@ -477,15 +598,35 @@ export default function LiquidRouteWalletPage() {
                   {error ? 'Retry' : 'Approve'}
                 </button>
               </div>
+              
+              {/* Show account footer when request is active */}
+              {publicKey && (
+                <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                  <Layout.Footer.Account 
+                    address={publicKey}
+                    onClick={() => {
+                      // Allow switching accounts
+                      store.setState((state) => ({
+                        ...state,
+                        accounts: [],
+                        accountMetadata: {}
+                      }))
+                      setAuthResult(null)
+                      setPublicKey(null)
+                      setHasPasskey(false)
+                    }}
+                  />
+                </div>
+              )}
             </div>
           ) : (
-            // Idle state
+            // Fallback idle state
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <div className="liquidroute-logo" style={{ margin: '0 auto 16px' }}>
                 <LiquidRouteIcon />
               </div>
               <h2 className="liquidroute-title">LiquidRoute</h2>
-              <p className="liquidroute-subtitle">Connected</p>
+              <p className="liquidroute-subtitle">Ready</p>
             </div>
           )}
         </div>

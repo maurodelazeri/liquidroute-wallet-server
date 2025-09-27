@@ -9,10 +9,12 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.4",
+    "idb-keyval": "^6.2.2",
     "next": "15.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
