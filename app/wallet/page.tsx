@@ -26,6 +26,7 @@ export default function WalletPage() {
   const [isCreatingPasskey, setIsCreatingPasskey] = useState(false)
   const [hasPasskey, setHasPasskey] = useState(false)
   const [passkeySupported, setPasskeySupported] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const messengerRef = useRef<Bridge | null>(null)
   
   // Check for existing passkey on mount
@@ -140,10 +141,12 @@ export default function WalletPage() {
   async function handleCreatePasskey() {
     try {
       setIsCreatingPasskey(true)
+      setErrorMessage(null)
       
-      // Create new passkey
-      const username = prompt('Enter a username for your wallet:') || 'User'
-      const result = await createPasskeyWallet(username)
+      // Use a default username - Porto doesn't prompt for this
+      const username = `user@${window.location.hostname}`
+      const displayName = 'LiquidRoute Wallet User'
+      const result = await createPasskeyWallet(username, displayName)
       
       // Store credential ID for future use
       storeCredentialId(result.credentialId)
@@ -153,9 +156,12 @@ export default function WalletPage() {
       setHasPasskey(true)
       
       return result
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create passkey:', error)
-      alert(`Failed to create passkey: ${error}`)
+      // Show error in UI like Porto does
+      setErrorMessage(error.message || 'Failed to create passkey')
+      // Clear error after 5 seconds
+      setTimeout(() => setErrorMessage(null), 5000)
     } finally {
       setIsCreatingPasskey(false)
     }
@@ -373,9 +379,19 @@ export default function WalletPage() {
                 </p>
               </div>
             </div>
+            
+            {/* Show error message if any */}
+            {errorMessage && (
+              <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-xl p-3">
+                <p className="text-red-400 text-sm text-center">
+                  {errorMessage}
+                </p>
+              </div>
+            )}
           </div>
         ) : currentRequest ? (
           // Request approval screen
+          (
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-xl font-semibold text-white mb-2">
@@ -426,6 +442,7 @@ export default function WalletPage() {
               </button>
             </div>
           </div>
+          )
         ) : (
           // Wallet main screen
           <div className="space-y-6">
