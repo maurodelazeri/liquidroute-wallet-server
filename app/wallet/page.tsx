@@ -2,12 +2,13 @@
 
 import dynamic from 'next/dynamic'
 
-// Use Porto's ACTUAL dialog app UI - not an imitation
-const PortoActualWallet = dynamic(() => import('./PortoActualWallet'), { 
+// For now, use our simplified Porto-style wallet
+// Full Porto integration requires complex build setup
+const PortoWallet = dynamic(() => import('./PortoWallet'), { 
   ssr: false,
   loading: () => null
 })
 
 export default function WalletPage() {
-  return <PortoActualWallet />
+  return <PortoWallet />
 }

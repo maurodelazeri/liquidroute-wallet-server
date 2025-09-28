@@ -4,9 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3001",
-    "dev:with-dialog": "concurrently \"next dev --turbopack --port 3001\" \"cd porto-apps/dialog && pnpm dev --port 3002\"",
-    "build": "next build && pnpm build:dialog",
-    "build:dialog": "cd porto-apps/dialog && pnpm build && cp -r dist ../../public/dialog",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },

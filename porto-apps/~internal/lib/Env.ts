@@ -1,20 +1,34 @@
-export const defaultEnv: Env = (() => {
-  if (import.meta.env.VITE_VERCEL_ENV === 'preview') return 'prod'
-  if (import.meta.env.VITE_DEFAULT_ENV)
-    return import.meta.env.VITE_DEFAULT_ENV as Env
-  return 'prod'
-})()
+export type Environment = 'development' | 'production' | 'preview'
 
-export const envs = ['prod', 'stg', 'anvil'] as const
-export type Env = (typeof envs)[number]
+export function get(): Environment {
+  if (typeof window === 'undefined') return 'development'
+  
+  const hostname = window.location.hostname
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'development'
+  }
+  if (hostname.includes('vercel.app')) {
+    return 'preview'
+  }
+  return 'production'
+}
 
-export function get(): Env {
-  if (typeof window === 'undefined') return defaultEnv
+export function isDevelopment(): boolean {
+  return get() === 'development'
+}
 
-  const url = new URL(window.location.href)
-  const env =
-    url.searchParams.get('relayEnv') ?? window.location.host.split(/\.|-/)[0]
-  if (env && envs.includes(env as Env)) return env as Env
+export function isProduction(): boolean {
+  return get() === 'production'
+}
 
-  return defaultEnv
+export function isPreview(): boolean {
+  return get() === 'preview'
+}
+
+// Export as namespace
+export const Env = {
+  get,
+  isDevelopment,
+  isProduction,
+  isPreview
 }
