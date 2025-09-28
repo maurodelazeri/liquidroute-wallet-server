@@ -94,7 +94,9 @@ export default function PortoStyleWallet() {
         const requests = data.payload
         if (requests.length > 0) {
           const request = requests[0]
-          handleRpcRequest(request)
+          setCurrentRequest({ ...request, id: data.id || request.id })
+          setRequestType(request.method)
+          setError(null)
         }
       }
     }
@@ -234,34 +236,16 @@ export default function PortoStyleWallet() {
     }
   }
 
-  // Porto-style CSS
-  const overlayStyles: React.CSSProperties = {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    display: 'grid',
-    placeItems: 'center',
-    padding: '24px',
-    animation: isVisible ? 'fadeIn 0.2s ease-out' : 'fadeOut 0.2s ease-out',
-    opacity: isVisible ? 1 : 0,
-  }
-
-  const dialogStyles: React.CSSProperties = {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    backdropFilter: 'blur(20px)',
-    borderRadius: '24px',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  // Iframe content styles - no overlay needed
+  const containerStyles: React.CSSProperties = {
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: '#ffffff',
     display: 'flex',
     flexDirection: 'column',
-    maxHeight: '90vh',
-    maxWidth: '440px',
     overflow: 'hidden',
     position: 'relative',
-    width: '100%',
-    border: '1px solid rgba(0, 0, 0, 0.08)',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   }
 
   const headerStyles: React.CSSProperties = {
@@ -336,9 +320,7 @@ export default function PortoStyleWallet() {
 
   return (
     <>
-      
-      <div style={overlayStyles}>
-        <div style={dialogStyles}>
+      <div style={containerStyles}>
           {/* Porto-style header */}
           <div style={headerStyles}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
@@ -574,7 +556,6 @@ export default function PortoStyleWallet() {
               </div>
             )}
           </div>
-        </div>
       </div>
     </>
   )
