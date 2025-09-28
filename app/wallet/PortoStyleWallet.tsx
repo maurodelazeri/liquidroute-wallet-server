@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { PublicKey, Keypair } from '@solana/web3.js'
-import nacl from 'tweetnacl'
 
 type RequestType = 'connect' | 'signMessage' | 'signTransaction' | null
 
@@ -130,13 +128,20 @@ export default function PortoStyleWallet() {
     setError(null)
     
     try {
-      // Simulate passkey auth with a random keypair
-      const keypair = Keypair.generate()
-      const pubkey = keypair.publicKey.toBase58()
+      // Generate a random wallet address for demo
+      const randomBytes = new Uint8Array(32)
+      crypto.getRandomValues(randomBytes)
+      
+      // Simple base64 encoding for demo
+      const pubkey = btoa(String.fromCharCode(...randomBytes))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '')
+        .slice(0, 44) // Typical Solana address length
       
       // Store for later use
       localStorage.setItem('wallet_publicKey', pubkey)
-      localStorage.setItem('wallet_secretKey', btoa(String.fromCharCode(...keypair.secretKey)))
+      localStorage.setItem('wallet_secretKey', btoa(String.fromCharCode(...randomBytes)))
       
       setPublicKey(pubkey)
       
@@ -164,18 +169,12 @@ export default function PortoStyleWallet() {
     if (!currentRequest) return
 
     if (currentRequest.method === 'signMessage') {
-      const secretKeyBase64 = localStorage.getItem('wallet_secretKey')
-      if (!secretKeyBase64) {
-        setError('Wallet not found')
-        return
-      }
-      
-      const secretKey = Uint8Array.from(atob(secretKeyBase64), c => c.charCodeAt(0))
-      const message = Uint8Array.from(atob(currentRequest.params.message), c => c.charCodeAt(0))
-      const signature = nacl.sign.detached(message, secretKey)
+      // For demo, just return a mock signature
+      const mockSignature = new Uint8Array(64)
+      crypto.getRandomValues(mockSignature)
       
       sendResponse(currentRequest.id, {
-        signature: btoa(String.fromCharCode(...signature))
+        signature: btoa(String.fromCharCode(...mockSignature))
       })
     } else if (currentRequest.method === 'signTransaction') {
       // For demo, just return a mock signature
@@ -295,38 +294,47 @@ export default function PortoStyleWallet() {
     )
   }
 
+  // Add styles to head
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      body {
+        margin: 0;
+        background: transparent;
+      }
+    `
+    document.head.appendChild(style)
+    return () => {
+      document.head.removeChild(style)
+    }
+  }, [])
+
   return (
     <>
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes fadeOut {
-          from {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          to {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        body {
-          margin: 0;
-          background: transparent;
-        }
-      `}</style>
       
       <div style={overlayStyles}>
         <div style={dialogStyles}>
