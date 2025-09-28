@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { PublicKey, Keypair } from '@solana/web3.js'
 import nacl from 'tweetnacl'
-import { Buffer } from 'buffer'
 
 type RequestType = 'connect' | 'signMessage' | 'signTransaction' | null
 
@@ -137,7 +136,7 @@ export default function PortoStyleWallet() {
       
       // Store for later use
       localStorage.setItem('wallet_publicKey', pubkey)
-      localStorage.setItem('wallet_secretKey', Buffer.from(keypair.secretKey).toString('base64'))
+      localStorage.setItem('wallet_secretKey', btoa(String.fromCharCode(...keypair.secretKey)))
       
       setPublicKey(pubkey)
       
@@ -171,17 +170,17 @@ export default function PortoStyleWallet() {
         return
       }
       
-      const secretKey = new Uint8Array(Buffer.from(secretKeyBase64, 'base64'))
-      const message = Buffer.from(currentRequest.params.message, 'base64')
+      const secretKey = Uint8Array.from(atob(secretKeyBase64), c => c.charCodeAt(0))
+      const message = Uint8Array.from(atob(currentRequest.params.message), c => c.charCodeAt(0))
       const signature = nacl.sign.detached(message, secretKey)
       
       sendResponse(currentRequest.id, {
-        signature: Buffer.from(signature).toString('base64')
+        signature: btoa(String.fromCharCode(...signature))
       })
     } else if (currentRequest.method === 'signTransaction') {
       // For demo, just return a mock signature
       sendResponse(currentRequest.id, {
-        signature: Buffer.from(new Uint8Array(64)).toString('base64')
+        signature: btoa(String.fromCharCode(...new Uint8Array(64)))
       })
     }
     
@@ -298,7 +297,7 @@ export default function PortoStyleWallet() {
 
   return (
     <>
-      <style jsx global>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;
