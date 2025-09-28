@@ -1,0 +1,58 @@
+# `Actions.revokePermissions`
+
+VanillaJS action for revoking permissions. Uses [`wallet_revokePermissions`](/sdk/rpc/wallet_revokePermissions) under the hood.
+
+## Usage
+
+:::code-group
+
+```ts twoslash [example.ts]
+import { Actions } from 'porto/wagmi'
+import { config } from './config'
+
+await Actions.revokePermissions(config, {
+  id: '0x...', // Permission ID to revoke
+})
+```
+
+```ts twoslash [config.ts] filename="config.ts"
+// [!include ~/snippets/wagmi/config.ts]
+```
+
+:::
+
+## Parameters
+
+### address
+
+`Address | undefined`
+
+Address of the account to revoke permissions for. Defaults to the current account.
+
+### chainId
+
+`number | undefined`
+
+Chain ID to revoke permissions on.
+
+### connector
+
+`Connector | CreateConnectorFn`
+
+The connector to use.
+
+### feeToken
+
+- **Type:** `'native' | Token.Symbol | Address.Address`
+
+Token to use to cover fees. Accepts:
+
+- `"native"` (Default): The native token of the chain.
+- Symbol: Symbol of the fee token (e.g. `"USDC"`).
+- Address: Address of the fee token (e.g. `"0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"`).
+
+### id
+
+`string`
+
+ID of the permission to revoke.
