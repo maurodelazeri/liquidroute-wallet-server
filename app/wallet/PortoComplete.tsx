@@ -2,6 +2,7 @@
 
 // ✅ WE HAVE THE COMPLETE PORTO SOURCE CODE
 // All files have been copied successfully!
+// This is just a status page - the actual wallet UI is in PortoWallet.tsx
 
 export default function PortoComplete() {
   return (

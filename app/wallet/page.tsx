@@ -2,12 +2,12 @@
 
 import dynamic from 'next/dynamic'
 
-// THE COMPLETE PORTO - ALL OF IT
-const PortoComplete = dynamic(() => import('./PortoComplete'), { 
+// Use our simplified Porto-style wallet UI
+const PortoWallet = dynamic(() => import('./PortoWallet'), { 
   ssr: false,
   loading: () => null
 })
 
 export default function WalletPage() {
-  return <PortoComplete />
+  return <PortoWallet />
 }
