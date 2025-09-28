@@ -319,6 +319,10 @@ export default function PortoStyleWallet() {
             transform: translateY(10px);
           }
         }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
         body {
           margin: 0;
           background: transparent;
@@ -408,12 +412,6 @@ export default function PortoStyleWallet() {
                   animation: 'spin 0.8s linear infinite',
                 }}>
                 </div>
-                <style jsx>{`
-                  @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                  }
-                `}</style>
               </div>
             )}
 
