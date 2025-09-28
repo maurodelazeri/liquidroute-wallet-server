@@ -14,6 +14,45 @@ export default function PortoStyleWallet() {
   const [isVisible, setIsVisible] = useState(false)
   const parentOrigin = useRef<string>('*')
 
+  // Add styles to head - must be before any conditional returns
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = `
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      body {
+        margin: 0;
+        background: transparent;
+      }
+    `
+    document.head.appendChild(style)
+    return () => {
+      document.head.removeChild(style)
+    }
+  }, [])
+
   useEffect(() => {
     // Check if we're in an iframe
     const inIframe = window.self !== window.top
@@ -294,44 +333,6 @@ export default function PortoStyleWallet() {
     )
   }
 
-  // Add styles to head
-  useEffect(() => {
-    const style = document.createElement('style')
-    style.textContent = `
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes fadeOut {
-        from {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        to {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-      }
-      @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      body {
-        margin: 0;
-        background: transparent;
-      }
-    `
-    document.head.appendChild(style)
-    return () => {
-      document.head.removeChild(style)
-    }
-  }, [])
 
   return (
     <>
